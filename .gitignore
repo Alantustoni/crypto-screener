@@ -1,0 +1,23 @@
+# Cache Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Banco de dados local (fica no AppData, não no repositório)
+signal_history.db
+signal_history.db-wal
+signal_history.db-shm
+signal_history.db-journal
+
+# Backups do JSON legado
+signal_history.json.bak
+signal_history.json
+
+# Estado de runtime (recriados automaticamente)
+telegram_offset.json
+tela_msg.json
+scan_resultado.html
+
+# Logs
+*.log
+nohup.out

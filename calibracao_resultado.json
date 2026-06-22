@@ -1,0 +1,816 @@
+{
+  "total_sinais": 10,
+  "timestamp": "2026-06-21T21:46:36",
+  "otimizacao": {
+    "melhor": {
+      "score_min": 7,
+      "fr_min": 1.0,
+      "n": 6,
+      "ev": 1.0756,
+      "win_rate": 66.7,
+      "media": 0.61,
+      "checkpoint": "resultado_1h"
+    },
+    "grade": [
+      {
+        "score_min": 7,
+        "fr_min": 0.5,
+        "n": 7,
+        "ev": 0.8571,
+        "win_rate": 57.1,
+        "media": 0.5
+      },
+      {
+        "score_min": 7,
+        "fr_min": 1.0,
+        "n": 6,
+        "ev": 1.0756,
+        "win_rate": 66.7,
+        "media": 0.61
+      },
+      {
+        "score_min": 7,
+        "fr_min": 1.5,
+        "n": 6,
+        "ev": 1.0756,
+        "win_rate": 66.7,
+        "media": 0.61
+      },
+      {
+        "score_min": 7,
+        "fr_min": 2.0,
+        "n": 6,
+        "ev": 1.0756,
+        "win_rate": 66.7,
+        "media": 0.61
+      },
+      {
+        "score_min": 7,
+        "fr_min": 2.5,
+        "n": 6,
+        "ev": 1.0756,
+        "win_rate": 66.7,
+        "media": 0.61
+      },
+      {
+        "score_min": 8,
+        "fr_min": 0.5,
+        "n": 7,
+        "ev": 0.8571,
+        "win_rate": 57.1,
+        "media": 0.5
+      },
+      {
+        "score_min": 8,
+        "fr_min": 1.0,
+        "n": 6,
+        "ev": 1.0756,
+        "win_rate": 66.7,
+        "media": 0.61
+      },
+      {
+        "score_min": 8,
+        "fr_min": 1.5,
+        "n": 6,
+        "ev": 1.0756,
+        "win_rate": 66.7,
+        "media": 0.61
+      },
+      {
+        "score_min": 8,
+        "fr_min": 2.0,
+        "n": 6,
+        "ev": 1.0756,
+        "win_rate": 66.7,
+        "media": 0.61
+      },
+      {
+        "score_min": 8,
+        "fr_min": 2.5,
+        "n": 6,
+        "ev": 1.0756,
+        "win_rate": 66.7,
+        "media": 0.61
+      },
+      {
+        "score_min": 9,
+        "fr_min": 0.5,
+        "n": 7,
+        "ev": 0.8571,
+        "win_rate": 57.1,
+        "media": 0.5
+      },
+      {
+        "score_min": 9,
+        "fr_min": 1.0,
+        "n": 6,
+        "ev": 1.0756,
+        "win_rate": 66.7,
+        "media": 0.61
+      },
+      {
+        "score_min": 9,
+        "fr_min": 1.5,
+        "n": 6,
+        "ev": 1.0756,
+        "win_rate": 66.7,
+        "media": 0.61
+      },
+      {
+        "score_min": 9,
+        "fr_min": 2.0,
+        "n": 6,
+        "ev": 1.0756,
+        "win_rate": 66.7,
+        "media": 0.61
+      },
+      {
+        "score_min": 9,
+        "fr_min": 2.5,
+        "n": 6,
+        "ev": 1.0756,
+        "win_rate": 66.7,
+        "media": 0.61
+      }
+    ],
+    "timestamp": "2026-06-21T21:46:35"
+  },
+  "resultado_aplicacao": {
+    "aplicado": true,
+    "motivo": "OK",
+    "antes": {
+      "score_minimo_setup": 8,
+      "fr_minimo_setup": 1.5,
+      "win_rate_atual": null
+    },
+    "depois": {
+      "score_minimo_setup": 7,
+      "fr_minimo_setup": 1.0,
+      "win_rate_atual": 66.7,
+      "versao": "v5.1"
+    }
+  },
+  "combinacoes": {
+    "MTF_alta": {
+      "n": 9,
+      "resultado_1h": {
+        "total": 8,
+        "win_rate": 62.5,
+        "media": 0.45
+      },
+      "resultado_2h": {
+        "total": 8,
+        "win_rate": 62.5,
+        "media": 0.26
+      },
+      "resultado_4h": {
+        "total": 8,
+        "win_rate": 50.0,
+        "media": 1.01
+      },
+      "resultado_8h": {
+        "total": 6,
+        "win_rate": 50.0,
+        "media": 1.68
+      },
+      "resultado_24h": null
+    },
+    "MTF_nao_alta": {
+      "n": 1,
+      "resultado_1h": {
+        "total": 1,
+        "win_rate": 100.0,
+        "media": 3.83
+      },
+      "resultado_2h": {
+        "total": 1,
+        "win_rate": 100.0,
+        "media": 4.11
+      },
+      "resultado_4h": {
+        "total": 1,
+        "win_rate": 100.0,
+        "media": 2.53
+      },
+      "resultado_8h": {
+        "total": 1,
+        "win_rate": 0.0,
+        "media": -1.56
+      },
+      "resultado_24h": null
+    },
+    "FR_acima_1.5": {
+      "n": 8,
+      "resultado_1h": {
+        "total": 7,
+        "win_rate": 71.4,
+        "media": 1.07
+      },
+      "resultado_2h": {
+        "total": 7,
+        "win_rate": 71.4,
+        "media": 0.88
+      },
+      "resultado_4h": {
+        "total": 7,
+        "win_rate": 57.1,
+        "media": 1.38
+      },
+      "resultado_8h": {
+        "total": 5,
+        "win_rate": 60.0,
+        "media": 1.91
+      },
+      "resultado_24h": null
+    },
+    "FR_acima_3.0": {
+      "n": 6,
+      "resultado_1h": {
+        "total": 5,
+        "win_rate": 80.0,
+        "media": 0.95
+      },
+      "resultado_2h": {
+        "total": 5,
+        "win_rate": 80.0,
+        "media": 0.62
+      },
+      "resultado_4h": {
+        "total": 5,
+        "win_rate": 60.0,
+        "media": 1.53
+      },
+      "resultado_8h": {
+        "total": 4,
+        "win_rate": 75.0,
+        "media": 2.77
+      },
+      "resultado_24h": null
+    },
+    "MTF_alta+FR>1.5": {
+      "n": 7,
+      "resultado_1h": {
+        "total": 6,
+        "win_rate": 66.7,
+        "media": 0.61
+      },
+      "resultado_2h": {
+        "total": 6,
+        "win_rate": 66.7,
+        "media": 0.34
+      },
+      "resultado_4h": {
+        "total": 6,
+        "win_rate": 50.0,
+        "media": 1.19
+      },
+      "resultado_8h": {
+        "total": 4,
+        "win_rate": 75.0,
+        "media": 2.77
+      },
+      "resultado_24h": null
+    },
+    "MTF_alta+FR>1.5+OB>0.3": {
+      "n": 0,
+      "resultado_1h": null,
+      "resultado_2h": null,
+      "resultado_4h": null,
+      "resultado_8h": null,
+      "resultado_24h": null
+    },
+    "setor_Meme": {
+      "n": 0,
+      "resultado_1h": null,
+      "resultado_2h": null,
+      "resultado_4h": null,
+      "resultado_8h": null,
+      "resultado_24h": null
+    },
+    "nao_Meme": {
+      "n": 10,
+      "resultado_1h": {
+        "total": 9,
+        "win_rate": 66.7,
+        "media": 0.83
+      },
+      "resultado_2h": {
+        "total": 9,
+        "win_rate": 66.7,
+        "media": 0.69
+      },
+      "resultado_4h": {
+        "total": 9,
+        "win_rate": 55.6,
+        "media": 1.18
+      },
+      "resultado_8h": {
+        "total": 7,
+        "win_rate": 42.9,
+        "media": 1.22
+      },
+      "resultado_24h": null
+    },
+    "market_bullish": {
+      "n": 1,
+      "resultado_1h": {
+        "total": 1,
+        "win_rate": 0.0,
+        "media": -0.18
+      },
+      "resultado_2h": {
+        "total": 1,
+        "win_rate": 0.0,
+        "media": -0.18
+      },
+      "resultado_4h": {
+        "total": 1,
+        "win_rate": 100.0,
+        "media": 1.04
+      },
+      "resultado_8h": {
+        "total": 1,
+        "win_rate": 0.0,
+        "media": -0.84
+      },
+      "resultado_24h": null
+    },
+    "market_bearish": {
+      "n": 0,
+      "resultado_1h": null,
+      "resultado_2h": null,
+      "resultado_4h": null,
+      "resultado_8h": null,
+      "resultado_24h": null
+    },
+    "score_gte_9": {
+      "n": 8,
+      "resultado_1h": {
+        "total": 7,
+        "win_rate": 57.1,
+        "media": 0.5
+      },
+      "resultado_2h": {
+        "total": 7,
+        "win_rate": 57.1,
+        "media": 0.27
+      },
+      "resultado_4h": {
+        "total": 7,
+        "win_rate": 57.1,
+        "media": 1.17
+      },
+      "resultado_8h": {
+        "total": 5,
+        "win_rate": 60.0,
+        "media": 2.05
+      },
+      "resultado_24h": null
+    },
+    "score_gte_8": {
+      "n": 10,
+      "resultado_1h": {
+        "total": 9,
+        "win_rate": 66.7,
+        "media": 0.83
+      },
+      "resultado_2h": {
+        "total": 9,
+        "win_rate": 66.7,
+        "media": 0.69
+      },
+      "resultado_4h": {
+        "total": 9,
+        "win_rate": 55.6,
+        "media": 1.18
+      },
+      "resultado_8h": {
+        "total": 7,
+        "win_rate": 42.9,
+        "media": 1.22
+      },
+      "resultado_24h": null
+    },
+    "score_gte_7": {
+      "n": 10,
+      "resultado_1h": {
+        "total": 9,
+        "win_rate": 66.7,
+        "media": 0.83
+      },
+      "resultado_2h": {
+        "total": 9,
+        "win_rate": 66.7,
+        "media": 0.69
+      },
+      "resultado_4h": {
+        "total": 9,
+        "win_rate": 55.6,
+        "media": 1.18
+      },
+      "resultado_8h": {
+        "total": 7,
+        "win_rate": 42.9,
+        "media": 1.22
+      },
+      "resultado_24h": null
+    },
+    "rsi_recovery": {
+      "n": 0,
+      "resultado_1h": null,
+      "resultado_2h": null,
+      "resultado_4h": null,
+      "resultado_8h": null,
+      "resultado_24h": null
+    },
+    "ob_positivo": {
+      "n": 1,
+      "resultado_1h": {
+        "total": 1,
+        "win_rate": 100.0,
+        "media": 0.1
+      },
+      "resultado_2h": {
+        "total": 1,
+        "win_rate": 100.0,
+        "media": 0.22
+      },
+      "resultado_4h": {
+        "total": 1,
+        "win_rate": 0.0,
+        "media": -0.09
+      },
+      "resultado_8h": {
+        "total": 1,
+        "win_rate": 0.0,
+        "media": -0.16
+      },
+      "resultado_24h": null
+    },
+    "setup_completo": {
+      "n": 10,
+      "resultado_1h": {
+        "total": 9,
+        "win_rate": 66.7,
+        "media": 0.83
+      },
+      "resultado_2h": {
+        "total": 9,
+        "win_rate": 66.7,
+        "media": 0.69
+      },
+      "resultado_4h": {
+        "total": 9,
+        "win_rate": 55.6,
+        "media": 1.18
+      },
+      "resultado_8h": {
+        "total": 7,
+        "win_rate": 42.9,
+        "media": 1.22
+      },
+      "resultado_24h": null
+    }
+  },
+  "faixas_score": {
+    "7": {
+      "resultado_1h": null,
+      "resultado_2h": null,
+      "resultado_4h": null,
+      "resultado_8h": null,
+      "resultado_24h": null
+    },
+    "8": {
+      "resultado_1h": {
+        "total": 2,
+        "win_rate": 100.0,
+        "media": 1.97
+      },
+      "resultado_2h": {
+        "total": 2,
+        "win_rate": 100.0,
+        "media": 2.17
+      },
+      "resultado_4h": {
+        "total": 2,
+        "win_rate": 50.0,
+        "media": 1.22
+      },
+      "resultado_8h": {
+        "total": 2,
+        "win_rate": 0.0,
+        "media": -0.86
+      },
+      "resultado_24h": null
+    },
+    "9": {
+      "resultado_1h": {
+        "total": 3,
+        "win_rate": 33.3,
+        "media": 0.09
+      },
+      "resultado_2h": {
+        "total": 3,
+        "win_rate": 33.3,
+        "media": -0.26
+      },
+      "resultado_4h": {
+        "total": 3,
+        "win_rate": 33.3,
+        "media": 0.02
+      },
+      "resultado_8h": {
+        "total": 2,
+        "win_rate": 0.0,
+        "media": -1.37
+      },
+      "resultado_24h": null
+    },
+    "10+": {
+      "resultado_1h": {
+        "total": 4,
+        "win_rate": 75.0,
+        "media": 0.8
+      },
+      "resultado_2h": {
+        "total": 4,
+        "win_rate": 75.0,
+        "media": 0.66
+      },
+      "resultado_4h": {
+        "total": 4,
+        "win_rate": 75.0,
+        "media": 2.03
+      },
+      "resultado_8h": {
+        "total": 3,
+        "win_rate": 100.0,
+        "media": 4.33
+      },
+      "resultado_24h": null
+    }
+  },
+  "campos": {
+    "mtf_tendencia": {
+      "alta": {
+        "resultado_1h": {
+          "total": 8,
+          "win_rate": 62.5,
+          "media": 0.45
+        },
+        "resultado_2h": {
+          "total": 8,
+          "win_rate": 62.5,
+          "media": 0.26
+        },
+        "resultado_4h": {
+          "total": 8,
+          "win_rate": 50.0,
+          "media": 1.01
+        },
+        "resultado_8h": {
+          "total": 6,
+          "win_rate": 50.0,
+          "media": 1.68
+        }
+      },
+      "None": {
+        "resultado_1h": {
+          "total": 1,
+          "win_rate": 100.0,
+          "media": 3.83
+        },
+        "resultado_2h": {
+          "total": 1,
+          "win_rate": 100.0,
+          "media": 4.11
+        },
+        "resultado_4h": {
+          "total": 1,
+          "win_rate": 100.0,
+          "media": 2.53
+        },
+        "resultado_8h": {
+          "total": 1,
+          "win_rate": 0.0,
+          "media": -1.56
+        }
+      }
+    },
+    "market_structure": {
+      "bullish": {
+        "resultado_1h": {
+          "total": 1,
+          "win_rate": 0.0,
+          "media": -0.18
+        },
+        "resultado_2h": {
+          "total": 1,
+          "win_rate": 0.0,
+          "media": -0.18
+        },
+        "resultado_4h": {
+          "total": 1,
+          "win_rate": 100.0,
+          "media": 1.04
+        },
+        "resultado_8h": {
+          "total": 1,
+          "win_rate": 0.0,
+          "media": -0.84
+        }
+      },
+      "None": {
+        "resultado_1h": {
+          "total": 8,
+          "win_rate": 75.0,
+          "media": 0.95
+        },
+        "resultado_2h": {
+          "total": 8,
+          "win_rate": 75.0,
+          "media": 0.8
+        },
+        "resultado_4h": {
+          "total": 8,
+          "win_rate": 50.0,
+          "media": 1.2
+        },
+        "resultado_8h": {
+          "total": 6,
+          "win_rate": 50.0,
+          "media": 1.56
+        }
+      }
+    },
+    "setor": {
+      "DeFi": {
+        "resultado_1h": {
+          "total": 4,
+          "win_rate": 50.0,
+          "media": 0.39
+        },
+        "resultado_2h": {
+          "total": 4,
+          "win_rate": 50.0,
+          "media": 0.58
+        },
+        "resultado_4h": {
+          "total": 4,
+          "win_rate": 50.0,
+          "media": 1.06
+        },
+        "resultado_8h": {
+          "total": 3,
+          "win_rate": 33.3,
+          "media": 0.41
+        }
+      },
+      "ETH": {
+        "resultado_1h": {
+          "total": 1,
+          "win_rate": 100.0,
+          "media": 0.1
+        },
+        "resultado_2h": {
+          "total": 1,
+          "win_rate": 100.0,
+          "media": 0.22
+        },
+        "resultado_4h": {
+          "total": 1,
+          "win_rate": 0.0,
+          "media": -0.09
+        },
+        "resultado_8h": {
+          "total": 1,
+          "win_rate": 0.0,
+          "media": -0.16
+        }
+      },
+      "Other": {
+        "resultado_1h": {
+          "total": 3,
+          "win_rate": 66.7,
+          "media": 0.65
+        },
+        "resultado_2h": {
+          "total": 3,
+          "win_rate": 66.7,
+          "media": -0.16
+        },
+        "resultado_4h": {
+          "total": 3,
+          "win_rate": 66.7,
+          "media": 1.31
+        },
+        "resultado_8h": {
+          "total": 2,
+          "win_rate": 100.0,
+          "media": 4.51
+        }
+      },
+      "AI": {
+        "resultado_1h": {
+          "total": 1,
+          "win_rate": 100.0,
+          "media": 3.83
+        },
+        "resultado_2h": {
+          "total": 1,
+          "win_rate": 100.0,
+          "media": 4.11
+        },
+        "resultado_4h": {
+          "total": 1,
+          "win_rate": 100.0,
+          "media": 2.53
+        },
+        "resultado_8h": {
+          "total": 1,
+          "win_rate": 0.0,
+          "media": -1.56
+        }
+      }
+    },
+    "rsi_recovery": {
+      "False": {
+        "resultado_1h": {
+          "total": 9,
+          "win_rate": 66.7,
+          "media": 0.83
+        },
+        "resultado_2h": {
+          "total": 9,
+          "win_rate": 66.7,
+          "media": 0.69
+        },
+        "resultado_4h": {
+          "total": 9,
+          "win_rate": 55.6,
+          "media": 1.18
+        },
+        "resultado_8h": {
+          "total": 7,
+          "win_rate": 42.9,
+          "media": 1.22
+        }
+      }
+    },
+    "setup_completo": {
+      "True": {
+        "resultado_1h": {
+          "total": 9,
+          "win_rate": 66.7,
+          "media": 0.83
+        },
+        "resultado_2h": {
+          "total": 9,
+          "win_rate": 66.7,
+          "media": 0.69
+        },
+        "resultado_4h": {
+          "total": 9,
+          "win_rate": 55.6,
+          "media": 1.18
+        },
+        "resultado_8h": {
+          "total": 7,
+          "win_rate": 42.9,
+          "media": 1.22
+        }
+      }
+    },
+    "tipo": {
+      "null": {
+        "resultado_1h": {
+          "total": 9,
+          "win_rate": 66.7,
+          "media": 0.83
+        },
+        "resultado_2h": {
+          "total": 9,
+          "win_rate": 66.7,
+          "media": 0.69
+        },
+        "resultado_4h": {
+          "total": 9,
+          "win_rate": 55.6,
+          "media": 1.18
+        },
+        "resultado_8h": {
+          "total": 7,
+          "win_rate": 42.9,
+          "media": 1.22
+        }
+      }
+    }
+  },
+  "sl_tp": {
+    "total_resultados": 34,
+    "stop_loss_hits": 0,
+    "tp1_hits": 1,
+    "tp2_hits": 0,
+    "sl_pct": 0.0
+  }
+}
