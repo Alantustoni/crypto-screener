@@ -14,6 +14,7 @@ from signal_history import registrar_sinais, registrar_manual, verificar_resulta
 
 # ─── AUTH ───────────────────────────────────────────────────────────────────
 DASHBOARD_PASSWORD = os.environ.get("DASHBOARD_PASSWORD", "")
+INTERNAL_API_KEY   = os.environ.get("INTERNAL_API_KEY", "")
 _valid_tokens: set = set()
 
 _PUBLIC_PATHS = {"/login", "/api/auth/login", "/api/tela", "/api/tela/clear"}
@@ -26,6 +27,9 @@ class AuthMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
         path = request.url.path
         if path in _PUBLIC_PATHS or any(path.startswith(p) for p in _PUBLIC_PREFIXES):
+            return await call_next(request)
+        # Chave interna para automação (scheduled tasks)
+        if INTERNAL_API_KEY and request.headers.get("X-Internal-Key") == INTERNAL_API_KEY:
             return await call_next(request)
         token = request.cookies.get("session_token", "")
         if token and token in _valid_tokens:
@@ -559,6 +563,76 @@ def test_tela(texto: str = Query(default="TESTE")):
         return {"ok": True, "path": str(_TELA_PATH), "texto": texto}
     except Exception as e:
         return {"ok": False, "erro": str(e), "path": str(_TELA_PATH)}
+
+
+@app.post("/api/internal/enviar-telegram")
+def internal_enviar_telegram(mensagem: str = Query(...)):
+    """Envia mensagem Telegram — usado pelos scheduled tasks de automação."""
+    from telegram_alert import enviar_mensagem as _enviar
+    config = carregar_config()
+    token   = config.get("bot_token", "")
+    chat_id = str(config.get("chat_id", ""))
+    if not token or not chat_id:
+        return {"ok": False, "erro": "Telegram não configurado"}
+    ok, err = _enviar(token, chat_id, mensagem)
+    return {"ok": ok, "erro": err}
+
+
+@app.get("/api/internal/dados-noite")
+def internal_dados_noite():
+    """Retorna pacote completo de dados para análise noturna autônoma."""
+    from datetime import datetime as _dt, timedelta as _td
+    historico_data  = carregar_historico()
+    config_screener = _ler_config_json()
+    tg_cfg          = carregar_config()
+
+    # Últimas 48h de sinais
+    cutoff = (_dt.now() - _td(hours=48)).isoformat(timespec="seconds")
+    recentes = [h for h in historico_data if h.get("timestamp", "") >= cutoff]
+
+    # Win rate geral
+    fechados = [h for h in historico_data if h.get("setup_completo")]
+    wins = sum(1 for h in fechados
+               if any(h.get(c, None) is not None and h.get(c, 0) > 0
+                      for c in ["resultado_1h","resultado_2h","resultado_4h","resultado_8h"]))
+    total_f = len(fechados)
+    win_rate = round(wins / total_f * 100, 1) if total_f else 0
+
+    # Por score
+    score_stats: dict = {}
+    for h in fechados:
+        s = str(h.get("score", 0))
+        if s not in score_stats:
+            score_stats[s] = {"total": 0, "wins": 0}
+        score_stats[s]["total"] += 1
+        vals = [h.get(c) for c in ["resultado_1h","resultado_2h","resultado_4h","resultado_8h"] if h.get(c) is not None]
+        if vals and max(vals) > 0:
+            score_stats[s]["wins"] += 1
+
+    # Por setor
+    setor_stats: dict = {}
+    for h in fechados:
+        s = h.get("setor", "Other")
+        if s not in setor_stats:
+            setor_stats[s] = {"total": 0, "wins": 0}
+        setor_stats[s]["total"] += 1
+        vals = [h.get(c) for c in ["resultado_1h","resultado_2h","resultado_4h","resultado_8h"] if h.get(c) is not None]
+        if vals and max(vals) > 0:
+            setor_stats[s]["wins"] += 1
+
+    return {
+        "timestamp":         _dt.now().isoformat(timespec="seconds"),
+        "total_sinais":      len(historico_data),
+        "total_fechados":    total_f,
+        "win_rate_geral":    win_rate,
+        "score_stats":       score_stats,
+        "setor_stats":       setor_stats,
+        "sinais_recentes":   recentes[-20:],
+        "config_screener":   config_screener,
+        "capital_total":     tg_cfg.get("capital_total", 200),
+        "base_valor_trade":  tg_cfg.get("base_valor_trade", 20),
+        "score_minimo":      tg_cfg.get("score_minimo", 8),
+    }
 
 
 @app.get("/api/debug/bot")

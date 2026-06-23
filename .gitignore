@@ -21,3 +21,7 @@ scan_resultado.html
 # Logs
 *.log
 nohup.out
+
+# Config local da automação noturna (contém chaves, não vai pro git)
+auto_config.json
+nightly_log.json
