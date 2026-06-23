@@ -1665,7 +1665,7 @@
   function iniciarPollingTela(){
     setInterval(async ()=>{
       try {
-        const d = await fetch('/api/tela').then(r=>r.json());
+        const d = await fetch('/api/tela',{credentials:'include'}).then(r=>r.json());
         if(!d.texto){ fecharTela(); return; }
         if(d.ts === _telaUltimoTs) return;   // já mostrando essa mensagem
         _telaUltimoTs = d.ts;

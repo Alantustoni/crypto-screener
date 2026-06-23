@@ -25,14 +25,16 @@ _ultimo_setup: dict = {}
 
 
 def _set_tela(texto):
-    """Salva mensagem para exibir no dashboard (None = limpar)."""
+    """Salva mensagem para exibir no dashboard (None = limpar). Retorna True se gravou."""
     try:
         _TELA_PATH.write_text(
             json.dumps({"texto": texto, "ts": datetime.now().isoformat(timespec="seconds")}),
             encoding="utf-8"
         )
-    except Exception:
-        pass
+        return True
+    except Exception as e:
+        print("[TELA] Erro ao gravar {}: {}".format(_TELA_PATH, e))
+        return False
 
 
 def carregar_config():
@@ -484,10 +486,13 @@ def processar_comandos(historico):
             resto = texto_recv[5:].strip()  # preserva maiúsculas/minúsculas
             if not resto or resto.lower() in ("off", "limpar", "clear", "fechar"):
                 _set_tela(None)
-                resposta = "Tela limpa!"
+                resposta = "✅ Tela limpa!"
             else:
-                _set_tela(resto)
-                resposta = "Exibindo no dashboard: \"{}\"".format(resto)
+                ok = _set_tela(resto)
+                if ok:
+                    resposta = "✅ Exibindo no dashboard: \"{}\"".format(resto)
+                else:
+                    resposta = "❌ Erro ao gravar tela_msg.json — verifique DATA_DIR"
         elif contem("/posicoes", "posicoes", "/aberto", "aberto", "/status", "status",
                   "abertas", "em aberto", "open"):
             resposta = _cmd_posicoes(historico, base_valor, capital)

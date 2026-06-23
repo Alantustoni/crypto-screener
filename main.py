@@ -16,7 +16,7 @@ from signal_history import registrar_sinais, registrar_manual, verificar_resulta
 DASHBOARD_PASSWORD = os.environ.get("DASHBOARD_PASSWORD", "")
 _valid_tokens: set = set()
 
-_PUBLIC_PATHS = {"/login", "/api/auth/login"}
+_PUBLIC_PATHS = {"/login", "/api/auth/login", "/api/tela", "/api/tela/clear"}
 _PUBLIC_PREFIXES = ("/static/",)
 
 
