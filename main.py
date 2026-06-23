@@ -548,6 +548,59 @@ def clear_tela():
     return {"ok": True}
 
 
+@app.post("/api/tela/test")
+def test_tela(texto: str = Query(default="TESTE")):
+    """Exibe mensagem de teste no dashboard sem passar pelo Telegram."""
+    try:
+        _TELA_PATH.write_text(
+            json.dumps({"texto": texto, "ts": __import__('datetime').datetime.now().isoformat(timespec='seconds')}),
+            encoding="utf-8"
+        )
+        return {"ok": True, "path": str(_TELA_PATH), "texto": texto}
+    except Exception as e:
+        return {"ok": False, "erro": str(e), "path": str(_TELA_PATH)}
+
+
+@app.get("/api/debug/bot")
+def debug_bot():
+    """Diagnóstico: mostra chat_id configurado + últimas atualizações do Telegram."""
+    import requests as req
+    config = carregar_config()
+    token   = config.get("bot_token", "")
+    chat_id = str(config.get("chat_id", ""))
+    ativo   = config.get("ativo", False)
+
+    if not token or not ativo:
+        return {"ativo": ativo, "chat_id_config": chat_id, "erro": "bot desativado ou sem token"}
+
+    try:
+        r = req.get(
+            "https://api.telegram.org/bot{}/getUpdates".format(token),
+            params={"limit": 5, "allowed_updates": ["message"]},
+            timeout=8,
+        )
+        updates = r.json()
+        # Mostra chat_ids recebidos sem expor conteúdo completo
+        msgs = []
+        for upd in updates.get("result", []):
+            m = upd.get("message", {})
+            msgs.append({
+                "update_id": upd.get("update_id"),
+                "chat_id":   str(m.get("chat", {}).get("id", "")),
+                "texto":     (m.get("text") or "")[:40],
+            })
+        return {
+            "ativo":          ativo,
+            "chat_id_config": chat_id,
+            "status_telegram": r.status_code,
+            "ultimas_msgs":   msgs,
+            "tela_path":      str(_TELA_PATH),
+            "tela_existe":    _TELA_PATH.exists(),
+        }
+    except Exception as e:
+        return {"erro": str(e)}
+
+
 @app.get("/api/taxa-brl")
 def taxa_brl():
     try:
