@@ -651,10 +651,10 @@ def _cmd_ajuda():
     )
 
 
-def testar_conexao():
-    config = carregar_config()
-    token   = config.get("bot_token", "")
-    chat_id = config.get("chat_id", "")
+def testar_conexao(bot_token: str = "", chat_id: str = ""):
+    config  = carregar_config()
+    token   = bot_token or config.get("bot_token", "")
+    chat_id = chat_id  or config.get("chat_id", "")
     if not token or not chat_id or "SEU_TOKEN" in token:
         return False, "Token ou chat_id nao configurado"
     try:
