@@ -27,8 +27,17 @@ AMOSTRAS_MIN = 5   # ignorar combinacoes com menos de N amostras
 # ------------- CARREGAMENTO -------------
 
 def carregar_historico():
+    # Primeiro tenta o JSON legado (pode ainda existir antes da migração SQLite)
     try:
-        return json.loads(HISTORY_PATH.read_text(encoding="utf-8"))
+        data = json.loads(HISTORY_PATH.read_text(encoding="utf-8"))
+        if data:
+            return data
+    except Exception:
+        pass
+    # Fallback: SQLite via signal_history (fonte correta pós-migração)
+    try:
+        from signal_history import carregar_historico as _db_loader
+        return _db_loader()
     except Exception:
         return []
 

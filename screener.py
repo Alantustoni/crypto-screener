@@ -32,17 +32,16 @@ TOP_PAIRS = [
     "PYTHUSDT","TONUSDT","ENAUSDT","PENDLEUSDT","EIGENUSDT",
     "JUPUSDT","TAOUSDT","ARKMUSDT","NOTUSDT","WOOUSDT",
     "STXUSDT","RUNEUSDT","KASUSDT","CELOUSDT","GALAUSDT",
-    # ── Novas 50 ─────────────────────────────────────────────────────
+    # ── Novas 42 (removidas as de baixa liquidez: PORTAL,PIXEL,REZ,HOOK,BEAM,ACE,PEOPLE,BLUR) ───
     "TRXUSDT","XLMUSDT","HBARUSDT","ICPUSDT","FILUSDT",
     "LDOUSDT","CRVUSDT","GMXUSDT","DYDXUSDT","SNXUSDT",
     "SANDUSDT","MANAUSDT","AXSUSDT","IMXUSDT","FLOWUSDT",
     "EGLDUSDT","FTMUSDT","CAKEUSDT","GRTUSDT","VETUSDT",
-    "ORDIUSDT","MNTUSDT","BLURUSDT","ALTUSDT","ZKUSDT",
+    "ORDIUSDT","MNTUSDT","ALTUSDT","ZKUSDT",
     "DYMUSDT","ZROUSDT","LISTAUSDT","CFXUSDT","STGUSDT",
     "1INCHUSDT","BALUSDT","ALGOUSDT","XTZUSDT","BANDUSDT",
-    "BBUSDT","PIXELUSDT","PORTALUSDT","REZUSDT","HOOKUSDT",
-    "ZRXUSDT","ENJUSDT","BEAMUSDT","ACEUSDT","CYBERUSDT",
-    "PEOPLEUSDT","CHZUSDT","APEUSDT","GMTUSDT","MAGICUSDT",
+    "BBUSDT","ZRXUSDT","ENJUSDT","CYBERUSDT",
+    "CHZUSDT","APEUSDT","GMTUSDT","MAGICUSDT",
 ]
 
 # ── Classificação por setor (para detecção de cascade)
@@ -859,6 +858,7 @@ def analisar_par(symbol: str, interval: str = "1h",
     # ── Volume Confirmado — últimas 2 velas acima da média de 20
     vol_media_20 = sum(volumes[-21:-1]) / 20 if len(volumes) >= 21 else None
     volume_confirmado = False
+    ratio_vol = 1.0  # default: assume volume normal se não há histórico suficiente
     if vol_media_20 and vol_media_20 > 0:
         vol_media_2 = (volumes[-1] + volumes[-2]) / 2
         ratio_vol = round(vol_media_2 / vol_media_20, 2)
@@ -866,9 +866,9 @@ def analisar_par(symbol: str, interval: str = "1h",
             volume_confirmado = True
             base["sinais"].append(f"📊 Volume confirmado ({ratio_vol}× média)")
             base["score"] += 1
-        elif ratio_vol < 0.5:
+        elif ratio_vol < 0.6:
             base["sinais"].append(f"📉 Volume muito baixo ({int(ratio_vol*100)}% da média)")
-            base["score"] -= 1
+            base["score"] -= 2  # penalidade maior (era -1)
 
     # ── Shadow RSI — RSI calculado no preço mediano (high+low)/2
     shadow_rsi_val = calcular_shadow_rsi(highs, lows)
@@ -888,14 +888,19 @@ def analisar_par(symbol: str, interval: str = "1h",
             base["score"] -= cfg["ob_penalidade"]
 
     # ── Fear & Greed — contexto global de sentimento do mercado
+    # NOTA: Medo extremo em sinais 1h = risco, não oportunidade contrária.
+    # Contrarian só funciona em horizonte de dias/semanas, não em entradas horárias.
     fg_value = (fear_greed or {}).get("value")
     if fg_value is not None:
-        if fg_value <= 25:
-            base["sinais"].append(f"😱 Medo Extremo F&G={fg_value} (contrário)")
-            base["score"] += 1
+        if fg_value <= 20:
+            base["sinais"].append(f"🚨 Pânico F&G={fg_value} — mercado em capitulação")
+            base["score"] -= 2
+        elif fg_value <= 30:
+            base["sinais"].append(f"😱 Medo Extremo F&G={fg_value} — cautela em entradas")
+            base["score"] -= 1
         elif fg_value >= 80:
             base["sinais"].append(f"🤑 Ganância Extrema F&G={fg_value} (cautela)")
-            base["score"] -= 1
+            base["score"] -= 2
 
     # ── BTC Gatekeeper: penaliza se BTC em queda nos últimos 6 candles
     # Queda leve (-1% a -2%): -1 no score, não bloqueia setup
@@ -947,9 +952,25 @@ def analisar_par(symbol: str, interval: str = "1h",
     if macro_bloqueado and symbol != "BTCUSDT":
         base["sinais"].append("🚨 CIRCUIT BREAKER: BTC -5% em 24h")
 
+    # ── Score mínimo dinâmico por contexto de mercado ─────────────────────
+    # Em mercados ruins exige sinal mais forte para entrar
+    score_minimo_efetivo = cfg["score_minimo_setup"]
+    btc_dom = get_btc_dominance()
+    if fg_value is not None and fg_value <= 25:
+        score_minimo_efetivo += 2   # Medo extremo: exige score muito alto
+    if btc_dom is not None and btc_dom > 55:
+        score_minimo_efetivo += 1   # Alta dominância BTC: altcoins em desvantagem
+
+    # ── Volume bloqueio duro ───────────────────────────────────────────────
+    # Se volume < 55% da média E não há anomalia estatística → bloqueia entrada
+    volume_insuficiente = (ratio_vol < 0.55 and vol_zscore < 1.5)
+    if volume_insuficiente:
+        base["sinais"].append(f"🚫 Volume insuficiente ({int(ratio_vol*100)}%) — entrada bloqueada")
+
     setup_completo = (
         not macro_bloqueado and
-        base["score"] >= cfg["score_minimo_setup"] and
+        not volume_insuficiente and            # NOVO: volume mínimo obrigatório
+        base["score"] >= score_minimo_efetivo and  # NOVO: threshold dinâmico
         criterios_ativos >= cfg["criterios_minimos_setup"] and
         base["rsi"] < cfg["rsi_maximo_setup"] and
         closes[-1] > base["ema50"] and
