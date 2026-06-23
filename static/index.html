@@ -1099,7 +1099,7 @@
     document.getElementById('hist-empty').style.display='none';
     historico.forEach(h=>{
       const sym=h.symbol.replace('USDT','');
-      const ts=new Date(h.timestamp);
+      const ts=new Date(h.timestamp+'Z');
       const data=ts.toLocaleDateString('pt-BR')+' '+ts.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
       const sCls=h.score>=5?'s5':h.score>=2?'s3':h.score>=0?'s1':'sn';
       const isManual=h.tipo==='manual';
@@ -1365,7 +1365,7 @@
         setorAberto[setor]=(setorAberto[setor]||0)+1;
       }
 
-      const ts=new Date(h.timestamp);
+      const ts=new Date(h.timestamp+'Z');
       const data=ts.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})+' '
                 +ts.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
       const sym=h.symbol.replace('USDT','');
