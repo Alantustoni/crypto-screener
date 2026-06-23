@@ -1707,8 +1707,11 @@
       ">${texto}</div>
       <div style="color:#30363d;font-size:.75rem;margin-top:3rem">clique para fechar</div>
     `;
-    el.addEventListener("click", fecharTela);
+    el.addEventListener("click", ()=>{ fecharTela(); _limparTelaServidor(); });
     document.body.appendChild(el);
+
+    // Auto-fecha em 5 segundos
+    setTimeout(()=>{ fecharTela(); _limparTelaServidor(); }, 5000);
   }
 
   function fecharTela(){
@@ -1716,6 +1719,13 @@
     if(el) el.remove();
     const st = document.getElementById("tela-style");
     if(st) st.remove();
+  }
+
+  async function _limparTelaServidor(){
+    try{
+      await fetch('/api/tela/clear',{method:'POST',credentials:'include'});
+      _telaUltimoTs = null;
+    }catch(e){}
   }
 
   // ── Auth check ───────────────────────────────────────────────────────────

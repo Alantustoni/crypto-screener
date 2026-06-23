@@ -525,14 +525,27 @@ def risco_posicoes():
     return {"posicoes": resultados, "total": len(resultados)}
 
 
+_TELA_PATH = Path(os.environ.get("DATA_DIR", Path(__file__).parent)) / "tela_msg.json"
+
+
 @app.get("/api/tela")
 def get_tela():
     """Retorna a mensagem atual para exibir no dashboard (polling pelo frontend)."""
     try:
-        data = json.loads((Path(__file__).parent / "tela_msg.json").read_text(encoding="utf-8"))
+        data = json.loads(_TELA_PATH.read_text(encoding="utf-8"))
         return data
     except Exception:
         return {"texto": None}
+
+
+@app.post("/api/tela/clear")
+def clear_tela():
+    """Limpa a mensagem da tela após exibição automática."""
+    try:
+        _TELA_PATH.write_text(json.dumps({"texto": None}), encoding="utf-8")
+    except Exception:
+        pass
+    return {"ok": True}
 
 
 @app.get("/api/taxa-brl")
