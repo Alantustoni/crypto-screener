@@ -548,7 +548,7 @@ def clear_tela():
     return {"ok": True}
 
 
-@app.post("/api/tela/test")
+@app.get("/api/tela/test")
 def test_tela(texto: str = Query(default="TESTE")):
     """Exibe mensagem de teste no dashboard sem passar pelo Telegram."""
     try:
