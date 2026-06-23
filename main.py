@@ -7,7 +7,7 @@ from fastapi import FastAPI, Query, Request, Response
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
-from screener import rodar_screener, INTERVALOS, TOP_PAIRS, get_ticker_24h, get_fear_greed, get_btc_dominance, analisar_risco_posicao
+from screener import rodar_screener, INTERVALOS, TOP_PAIRS, get_ticker_24h, get_fear_greed, get_btc_dominance, analisar_risco_posicao, carregar_config_screener
 from backtesting import backtest
 from telegram_alert import checar_e_alertar, testar_conexao, carregar_config, salvar_config, enviar_relatorio_diario, enviar_resumo_posicoes, enviar_fechamento, processar_comandos
 from signal_history import registrar_sinais, registrar_manual, verificar_resultados, obter_historico_com_stats, carregar_historico, calcular_calibracao, monitorar_stops_ativos
@@ -185,7 +185,9 @@ def scan(
 
     novos_sinais = 0
     try:
-        novos_sinais = registrar_sinais(resultados)
+        # Usa score_minimo_setup do config dinâmico (sincronizado com auto-calibração)
+        _score_min = int(carregar_config_screener().get("score_minimo_setup", 8))
+        novos_sinais = registrar_sinais(resultados, score_minimo=_score_min)
     except Exception:
         pass
 
@@ -732,7 +734,8 @@ async def iniciar_loops_automaticos():
             try:
                 resultados = rodar_screener(interval="1h", top_n=50)
                 alertas = checar_e_alertar(resultados)
-                novos = registrar_sinais(resultados)
+                _score_min = int(carregar_config_screener().get("score_minimo_setup", 8))
+                novos = registrar_sinais(resultados, score_minimo=_score_min)
                 if novos > 0:
                     total = _incrementar_sinais_config(novos)
                     if total >= _CALIBRACAO_TRIGGER:
