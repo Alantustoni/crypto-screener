@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Crypto Screener — Login</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{
+      background:#0d1117;
+      color:#e6edf3;
+      font-family:'Segoe UI',system-ui,sans-serif;
+      min-height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+    .card{
+      background:#161b22;
+      border:1px solid #30363d;
+      border-radius:12px;
+      padding:40px 36px;
+      width:100%;
+      max-width:380px;
+      box-shadow:0 8px 32px rgba(0,0,0,.4);
+    }
+    .logo{
+      text-align:center;
+      margin-bottom:32px;
+    }
+    .logo h1{
+      font-size:1.5rem;
+      font-weight:700;
+      color:#f0883e;
+      letter-spacing:.5px;
+    }
+    .logo p{
+      font-size:.78rem;
+      color:#8b949e;
+      margin-top:6px;
+    }
+    label{
+      display:block;
+      font-size:.8rem;
+      color:#8b949e;
+      margin-bottom:6px;
+      font-weight:500;
+    }
+    input[type=password]{
+      width:100%;
+      background:#0d1117;
+      border:1px solid #30363d;
+      border-radius:6px;
+      color:#e6edf3;
+      padding:10px 14px;
+      font-size:.9rem;
+      outline:none;
+      transition:border-color .2s;
+    }
+    input[type=password]:focus{border-color:#f0883e}
+    .btn{
+      width:100%;
+      margin-top:20px;
+      padding:11px;
+      background:#f0883e;
+      color:#0d1117;
+      border:none;
+      border-radius:6px;
+      font-size:.9rem;
+      font-weight:700;
+      cursor:pointer;
+      transition:opacity .2s;
+    }
+    .btn:hover{opacity:.85}
+    .btn:disabled{opacity:.4;cursor:not-allowed}
+    .error{
+      margin-top:14px;
+      padding:9px 12px;
+      background:#f8514922;
+      border:1px solid #f85149;
+      border-radius:6px;
+      color:#f85149;
+      font-size:.8rem;
+      display:none;
+    }
+    .spinner{
+      display:inline-block;
+      width:14px;height:14px;
+      border:2px solid #0d1117;
+      border-top-color:transparent;
+      border-radius:50%;
+      animation:spin .7s linear infinite;
+      vertical-align:middle;
+      margin-right:6px;
+    }
+    @keyframes spin{to{transform:rotate(360deg)}}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">
+      <h1>🔐 Crypto Screener</h1>
+      <p>Digite a senha para acessar o dashboard</p>
+    </div>
+    <form id="loginForm" onsubmit="return false">
+      <label for="pwd">Senha</label>
+      <input type="password" id="pwd" autocomplete="current-password" autofocus placeholder="••••••••"/>
+      <button class="btn" id="btnLogin" onclick="login()">Entrar</button>
+      <div class="error" id="erro"></div>
+    </form>
+  </div>
+
+  <script>
+    async function login() {
+      const pwd   = document.getElementById('pwd').value.trim();
+      const btn   = document.getElementById('btnLogin');
+      const erro  = document.getElementById('erro');
+
+      if (!pwd) { showErr('Digite a senha.'); return; }
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span>Entrando...';
+      erro.style.display = 'none';
+
+      try {
+        const resp = await fetch('/api/auth/login?password=' + encodeURIComponent(pwd), {
+          method: 'POST',
+          credentials: 'include'
+        });
+        if (resp.ok) {
+          window.location.href = '/';
+        } else {
+          const data = await resp.json().catch(() => ({}));
+          showErr(data.msg || 'Senha incorreta.');
+          btn.disabled = false;
+          btn.textContent = 'Entrar';
+        }
+      } catch(e) {
+        showErr('Erro de conexão. Tente novamente.');
+        btn.disabled = false;
+        btn.textContent = 'Entrar';
+      }
+    }
+
+    function showErr(msg) {
+      const el = document.getElementById('erro');
+      el.textContent = msg;
+      el.style.display = 'block';
+    }
+
+    document.getElementById('pwd').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') login();
+    });
+  </script>
+</body>
+</html>

@@ -267,7 +267,7 @@
 <header>
   <div>
     <h1>📊 Crypto Screener Pro</h1>
-    <p>50 moedas · Funding Rate · Divergência RSI · Multi-Timeframe</p>
+    <p>100 moedas · Funding Rate · Divergência RSI · Multi-Timeframe</p>
   </div>
   <div class="controls">
     <select id="interval-select">
@@ -280,6 +280,7 @@
     <button class="btn btn-primary" id="scan-btn" onclick="rodarScan()">⚡ Analisar agora</button>
     <button class="btn btn-ghost" id="btn-som" onclick="toggleSom()" style="font-size:.75rem;padding:6px 12px">🔕 Som</button>
     <label id="auto-label"><input type="checkbox" id="auto-refresh" checked> Auto (<span id="countdown">60</span>s)</label>
+    <button class="btn btn-ghost" onclick="logout()" style="font-size:.75rem;padding:6px 12px;color:#f85149;border-color:#f85149" title="Sair">🚪 Sair</button>
   </div>
 </header>
 
@@ -723,8 +724,8 @@
     document.getElementById('status-text').innerHTML='<span class="spinner"></span> Buscando dados + Funding Rates...';
     try{
       const controller=new AbortController();
-      const tid=setTimeout(()=>controller.abort(),90000); // abort após 90s
-      const res=await fetch(`/api/scan?interval=${interval}&top_n=50`,{signal:controller.signal});
+      const tid=setTimeout(()=>controller.abort(),150000); // abort após 150s
+      const res=await fetch(`/api/scan?interval=${interval}&top_n=100`,{signal:controller.signal});
       clearTimeout(tid);
       const data=await res.json();
       allData=data.resultados||[];
@@ -1715,6 +1716,19 @@
     if(el) el.remove();
     const st = document.getElementById("tela-style");
     if(st) st.remove();
+  }
+
+  // ── Auth check ───────────────────────────────────────────────────────────
+  (async function checkAuth(){
+    try {
+      const r = await fetch('/api/auth/check', {credentials:'include'});
+      if(r.status === 401) window.location.href = '/login';
+    } catch(e) { /* offline / network error – não redireciona */ }
+  })();
+
+  async function logout(){
+    await fetch('/api/auth/logout', {method:'POST', credentials:'include'});
+    window.location.href = '/login';
   }
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>

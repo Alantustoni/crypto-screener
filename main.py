@@ -1,16 +1,42 @@
 import asyncio
 import json
 import os
+import secrets
 from pathlib import Path
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, Request, Response
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 from screener import rodar_screener, INTERVALOS, TOP_PAIRS, get_ticker_24h, get_fear_greed, get_btc_dominance, analisar_risco_posicao
 from backtesting import backtest
 from telegram_alert import checar_e_alertar, testar_conexao, carregar_config, salvar_config, enviar_relatorio_diario, enviar_resumo_posicoes, enviar_fechamento, processar_comandos
 from signal_history import registrar_sinais, registrar_manual, verificar_resultados, obter_historico_com_stats, carregar_historico, calcular_calibracao, monitorar_stops_ativos
 
+# ─── AUTH ───────────────────────────────────────────────────────────────────
+DASHBOARD_PASSWORD = os.environ.get("DASHBOARD_PASSWORD", "")
+_valid_tokens: set = set()
+
+_PUBLIC_PATHS = {"/login", "/api/auth/login"}
+_PUBLIC_PREFIXES = ("/static/",)
+
+
+class AuthMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        if not DASHBOARD_PASSWORD:
+            return await call_next(request)
+        path = request.url.path
+        if path in _PUBLIC_PATHS or any(path.startswith(p) for p in _PUBLIC_PREFIXES):
+            return await call_next(request)
+        token = request.cookies.get("session_token", "")
+        if token and token in _valid_tokens:
+            return await call_next(request)
+        if path.startswith("/api/"):
+            return JSONResponse({"error": "unauthorized"}, status_code=401)
+        return RedirectResponse(url="/login")
+
+# ─── APP ────────────────────────────────────────────────────────────────────
 app = FastAPI(title="Crypto Screener")
+app.add_middleware(AuthMiddleware)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 _CONFIG_PATH = Path(__file__).parent / "screener_config.json"
@@ -61,10 +87,43 @@ def index():
     return FileResponse("static/index.html")
 
 
+@app.get("/login")
+def login_page():
+    return FileResponse("static/login.html")
+
+
+@app.post("/api/auth/login")
+def auth_login(password: str = Query(...), response: Response = None):
+    if not DASHBOARD_PASSWORD:
+        return {"sucesso": True, "msg": "auth desabilitada"}
+    if password == DASHBOARD_PASSWORD:
+        token = secrets.token_hex(32)
+        _valid_tokens.add(token)
+        response.set_cookie(
+            "session_token", token,
+            httponly=True, samesite="lax",
+            max_age=86400 * 30
+        )
+        return {"sucesso": True}
+    return JSONResponse({"sucesso": False, "msg": "Senha incorreta"}, status_code=401)
+
+
+@app.post("/api/auth/logout")
+def auth_logout(response: Response):
+    token = None  # will be cleared via cookie
+    response.delete_cookie("session_token")
+    return {"sucesso": True}
+
+
+@app.get("/api/auth/check")
+def auth_check():
+    return {"autenticado": True}
+
+
 @app.get("/api/scan")
 def scan(
     interval: str = Query(default="1h"),
-    top_n: int = Query(default=50, ge=5, le=50),
+    top_n: int = Query(default=100, ge=5, le=100),
     telegram: bool = Query(default=True),
 ):
     if interval not in INTERVALOS:

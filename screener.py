@@ -21,6 +21,7 @@ def _get(url: str, params=None, timeout=10):
     return requests.get(url, params=params, headers=_HEADERS, timeout=timeout)
 
 TOP_PAIRS = [
+    # ── Top 50 originais ──────────────────────────────────────────────
     "BTCUSDT","ETHUSDT","BNBUSDT","SOLUSDT","XRPUSDT",
     "DOGEUSDT","ADAUSDT","AVAXUSDT","DOTUSDT","POLUSDT",
     "LINKUSDT","UNIUSDT","AAVEUSDT","MKRUSDT","COMPUSDT",
@@ -31,21 +32,40 @@ TOP_PAIRS = [
     "PYTHUSDT","TONUSDT","ENAUSDT","PENDLEUSDT","EIGENUSDT",
     "JUPUSDT","TAOUSDT","ARKMUSDT","NOTUSDT","WOOUSDT",
     "STXUSDT","RUNEUSDT","KASUSDT","CELOUSDT","GALAUSDT",
+    # ── Novas 50 ─────────────────────────────────────────────────────
+    "TRXUSDT","XLMUSDT","HBARUSDT","ICPUSDT","FILUSDT",
+    "LDOUSDT","CRVUSDT","GMXUSDT","DYDXUSDT","SNXUSDT",
+    "SANDUSDT","MANAUSDT","AXSUSDT","IMXUSDT","FLOWUSDT",
+    "EGLDUSDT","FTMUSDT","CAKEUSDT","GRTUSDT","VETUSDT",
+    "ORDIUSDT","MNTUSDT","BLURUSDT","ALTUSDT","ZKUSDT",
+    "DYMUSDT","ZROUSDT","LISTAUSDT","CFXUSDT","STGUSDT",
+    "1INCHUSDT","BALUSDT","ALGOUSDT","XTZUSDT","BANDUSDT",
+    "BBUSDT","PIXELUSDT","PORTALUSDT","REZUSDT","HOOKUSDT",
+    "ZRXUSDT","ENJUSDT","BEAMUSDT","ACEUSDT","CYBERUSDT",
+    "PEOPLEUSDT","CHZUSDT","APEUSDT","GMTUSDT","MAGICUSDT",
 ]
 
 # ── Classificação por setor (para detecção de cascade)
 SETORES: dict = {
     "BTC":     ["BTCUSDT"],
     "ETH":     ["ETHUSDT"],
-    "L1":      ["SOLUSDT","AVAXUSDT","NEARUSDT","APTUSDT","SUIUSDT","TONUSDT","KASUSDT","ADAUSDT"],
-    "DeFi":    ["UNIUSDT","AAVEUSDT","MKRUSDT","COMPUSDT","PENDLEUSDT","JUPUSDT"],
-    "Layer2":  ["ARBUSDT","OPUSDT","POLUSDT","STXUSDT"],
+    "L1":      ["SOLUSDT","AVAXUSDT","NEARUSDT","APTUSDT","SUIUSDT","TONUSDT","KASUSDT","ADAUSDT",
+                 "TRXUSDT","XLMUSDT","HBARUSDT","ICPUSDT","EGLDUSDT","FTMUSDT","FLOWUSDT","ALGOUSDT","VETUSDT"],
+    "DeFi":    ["UNIUSDT","AAVEUSDT","MKRUSDT","COMPUSDT","PENDLEUSDT","JUPUSDT",
+                 "LDOUSDT","CRVUSDT","GMXUSDT","DYDXUSDT","SNXUSDT","CAKEUSDT","1INCHUSDT","BALUSDT","STGUSDT"],
+    "Layer2":  ["ARBUSDT","OPUSDT","POLUSDT","STXUSDT","MNTUSDT","ZKUSDT","ALTUSDT"],
     "AI":      ["FETUSDT","RENDERUSDT","AGIXUSDT","OCEANUSDT","TAOUSDT","WLDUSDT"],
-    "Meme":    ["DOGEUSDT","SHIBUSDT","PEPEUSDT","FLOKIUSDT","WIFUSDT","BONKUSDT","NOTUSDT"],
-    "Interop": ["DOTUSDT","ATOMUSDT","LINKUSDT","RUNEUSDT","XRPUSDT"],
+    "Meme":    ["DOGEUSDT","SHIBUSDT","PEPEUSDT","FLOKIUSDT","WIFUSDT","BONKUSDT","NOTUSDT",
+                 "LUNCUSDT","PEOPLEUSDT","BTTUSDT"],
+    "Interop": ["DOTUSDT","ATOMUSDT","LINKUSDT","RUNEUSDT","XRPUSDT","ZROUSDT","WUSDT"],
     "Exchange":["BNBUSDT","WOOUSDT"],
+    "Gaming":  ["SANDUSDT","MANAUSDT","AXSUSDT","IMXUSDT","ENJUSDT","BEAMUSDT","PIXELUSDT","HOOKUSDT",
+                 "CHZUSDT","APEUSDT","GMTUSDT","MAGICUSDT"],
+    "Infra":   ["FILUSDT","GRTUSDT","BANDUSDT","ZRXUSDT","CFXUSDT","XTZUSDT","DYMUSDT","STGUSDT"],
     "Other":   ["LTCUSDT","INJUSDT","TIAUSDT","SEIUSDT","EIGENUSDT",
-                 "PYTHUSDT","ENAUSDT","ARKMUSDT","CELOUSDT","GALAUSDT"],
+                 "PYTHUSDT","ENAUSDT","ARKMUSDT","CELOUSDT","GALAUSDT",
+                 "ORDIUSDT","BLURUSDT","LISTAUSDT","BBUSDT","PORTALUSDT",
+                 "REZUSDT","ACEUSDT","CYBERUSDT","PEOPLEUSDT"],
 }
 _SETOR_MAP: dict = {sym: s for s, syms in SETORES.items() for sym in syms}
 
@@ -1108,7 +1128,7 @@ def analisar_risco_posicao(symbol: str, preco_entrada: float, interval: str = "1
 
 # ─── RODAR SCREENER ──────────────────────────────────────────────────────────
 
-def rodar_screener(interval: str = "1h", top_n: int = 50) -> list:
+def rodar_screener(interval: str = "1h", top_n: int = 100) -> list:
     """
     Roda o screener em todos os TOP_PAIRS em paralelo.
     Retorna lista de resultados ordenados por score (desc).

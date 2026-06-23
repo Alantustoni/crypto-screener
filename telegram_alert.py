@@ -4,14 +4,22 @@ import requests
 from datetime import datetime, timedelta
 from pathlib import Path
 
-# Arquivos de config ficam na pasta do projeto.
-# Arquivos de estado (offset, tela) ficam em DATA_DIR se definido
-# (Railway volume), senão na pasta do projeto.
+# Arquivos de estado ficam em DATA_DIR (Railway volume) para persistir entre redeploys.
 _PROJ_DIR    = Path(__file__).parent
 _DATA_DIR    = Path(os.environ.get("DATA_DIR", _PROJ_DIR))
-CONFIG_PATH  = _PROJ_DIR / "telegram_config.json"
+_DATA_DIR.mkdir(parents=True, exist_ok=True)
+CONFIG_PATH  = _DATA_DIR / "telegram_config.json"
 _OFFSET_PATH = _DATA_DIR / "telegram_offset.json"
 _TELA_PATH   = _DATA_DIR / "tela_msg.json"
+
+# Migração: copia config do projeto para o volume na primeira execução
+_CONFIG_LEGADO = _PROJ_DIR / "telegram_config.json"
+if not CONFIG_PATH.exists() and _CONFIG_LEGADO.exists():
+    try:
+        import shutil
+        shutil.copy2(_CONFIG_LEGADO, CONFIG_PATH)
+    except Exception:
+        pass
 
 _ultimo_setup: dict = {}
 
