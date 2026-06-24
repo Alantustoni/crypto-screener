@@ -4,76 +4,90 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>Crypto Screener Pro</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.26.0/dist/tabler-icons.min.css">
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
-    body{background:#0d1117;color:#e6edf3;font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh}
+    body{background:#0b0f1a;color:#e6edf3;font-family:'Inter','Segoe UI',system-ui,sans-serif;min-height:100vh}
 
-    header{background:#161b22;border-bottom:1px solid #30363d;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
-    header h1{font-size:1.3rem;font-weight:700;color:#f0883e}
-    header p{font-size:.75rem;color:#8b949e;margin-top:2px}
-    .taxa-brl{font-size:.75rem;background:#21262d;border:1px solid #30363d;border-radius:6px;padding:5px 10px;color:#8b949e}
+    /* ── HEADER ── */
+    header{background:#0f1629;border-bottom:1px solid #1e2d45;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+    .header-brand{display:flex;align-items:center;gap:10px}
+    .brand-icon{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#f0883e,#c96820);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff;letter-spacing:.02em;flex-shrink:0}
+    header h1{font-size:1.1rem;font-weight:700;color:#e6edf3;letter-spacing:-.01em}
+    header p{font-size:.72rem;color:#4d6890;margin-top:1px}
+    .live-badge{background:#0d2b12;border:1px solid #1e5a2a;color:#3fb950;font-size:.68rem;padding:3px 9px;border-radius:20px;font-weight:600;letter-spacing:.04em;animation:livePulse 2.5s ease-in-out infinite}
+    @keyframes livePulse{0%,100%{opacity:1}50%{opacity:.65}}
+    .taxa-brl{font-size:.75rem;background:#162030;border:1px solid #1e2d45;border-radius:8px;padding:5px 10px;color:#6a8aaa}
     .taxa-brl strong{color:#3fb950}
-    .controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-    select{background:#21262d;border:1px solid #30363d;color:#e6edf3;padding:7px 12px;border-radius:6px;font-size:.85rem}
-    .btn{padding:8px 16px;border-radius:6px;font-size:.85rem;font-weight:600;cursor:pointer;border:none;transition:opacity .2s}
+    .controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    select{background:#162030;border:1px solid #1e2d45;color:#e6edf3;padding:7px 12px;border-radius:8px;font-size:.85rem;font-family:inherit}
+    .btn{padding:8px 16px;border-radius:8px;font-size:.85rem;font-weight:600;cursor:pointer;border:none;transition:opacity .2s;font-family:inherit}
     .btn:hover{opacity:.85} .btn:disabled{opacity:.4;cursor:not-allowed}
-    .btn-primary{background:#f0883e;color:#0d1117}
-    .btn-ghost{background:#21262d;border:1px solid #30363d;color:#e6edf3}
-    .btn-green{background:#3fb950;color:#0d1117}
+    .btn-primary{background:linear-gradient(135deg,#f0883e,#c96820);color:#fff;box-shadow:0 2px 10px #f0883e28}
+    .btn-ghost{background:#162030;border:1px solid #1e2d45;color:#8ba4cc}
+    .btn-green{background:#3fb950;color:#0b0f1a}
 
-    .tabs{display:flex;background:#161b22;border-bottom:1px solid #30363d;padding:0 24px}
-    .tab{padding:12px 20px;font-size:.85rem;cursor:pointer;color:#8b949e;border-bottom:2px solid transparent;transition:all .2s}
-    .tab:hover{color:#e6edf3} .tab.active{color:#f0883e;border-bottom-color:#f0883e;font-weight:600}
+    /* ── TABS ── */
+    .tabs{display:flex;background:#0f1629;border-bottom:1px solid #1e2d45;padding:0 20px;gap:2px}
+    .tab{padding:11px 16px;font-size:.82rem;cursor:pointer;color:#4d6890;border-bottom:2px solid transparent;transition:all .2s;display:flex;align-items:center;gap:6px;white-space:nowrap}
+    .tab i{font-size:14px}
+    .tab:hover{color:#8ba4cc} .tab.active{color:#f0883e;border-bottom-color:#f0883e;font-weight:600}
     .tab-content{display:none} .tab-content.active{display:block}
 
-    .status-bar{padding:8px 24px;font-size:.78rem;color:#8b949e;display:flex;justify-content:space-between;align-items:center;background:#0d1117;border-bottom:1px solid #161b22}
+    .status-bar{padding:8px 24px;font-size:.78rem;color:#6a8aaa;display:flex;justify-content:space-between;align-items:center;background:#0b0f1a;border-bottom:1px solid #111827}
     .spinner{display:inline-block;width:11px;height:11px;border:2px solid #f0883e;border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite;margin-right:5px;vertical-align:middle}
     @keyframes spin{to{transform:rotate(360deg)}}
 
 
     .summary-cards{display:flex;gap:10px;padding:14px 24px;flex-wrap:wrap}
-    .card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:12px 16px;min-width:120px;flex:1}
-    .card .label{font-size:.68rem;color:#8b949e;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+    .card{background:#0f1629;border:1px solid #1e2d45;border-radius:12px;padding:12px 16px;min-width:120px;flex:1;transition:border-color .2s}
+    .card:hover{border-color:#2a3d5a}
+    .card .label{font-size:.68rem;color:#4d6890;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
     .card .value{font-size:1.4rem;font-weight:700}
-    .card .sublabel{font-size:.66rem;color:#444;margin-top:2px}
+    .card .sublabel{font-size:.66rem;color:#2a3d5a;margin-top:2px}
     .green{color:#3fb950} .red{color:#f85149} .orange{color:#f0883e} .purple{color:#d2a8ff}
 
     .filters{padding:0 24px 12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-    .filter-btn{background:#21262d;border:1px solid #30363d;color:#8b949e;padding:5px 12px;border-radius:20px;font-size:.78rem;cursor:pointer}
-    .filter-btn.active{background:#f0883e22;border-color:#f0883e;color:#f0883e;font-weight:600}
+    .filter-btn{background:#162030;border:1px solid #1e2d45;color:#6a8aaa;padding:5px 14px;border-radius:20px;font-size:.78rem;cursor:pointer;transition:all .15s;font-family:inherit}
+    .filter-btn:hover{border-color:#2a3d5a;color:#8ba4cc}
+    .filter-btn.active{background:#f0883e18;border-color:#f0883e;color:#f0883e;font-weight:600}
 
     .table-wrapper{padding:0 24px 30px;overflow-x:auto}
     table{width:100%;border-collapse:collapse;font-size:.82rem}
-    thead th{background:#161b22;color:#8b949e;font-weight:600;text-align:left;padding:9px 10px;border-bottom:2px solid #30363d;white-space:nowrap;cursor:pointer;user-select:none;font-size:.72rem;text-transform:uppercase;letter-spacing:.4px}
-    thead th:hover{color:#e6edf3}
-    .th-sub{display:block;font-size:.6rem;color:#444;font-weight:400;text-transform:none;letter-spacing:0;margin-top:1px}
-    tbody tr{border-bottom:1px solid #21262d;transition:background .15s;cursor:pointer}
-    tbody tr:hover{background:#161b22}
-    tbody tr.setup-completo{background:#1a2a1a;border-left:3px solid #3fb950}
-    tbody tr.setup-completo:hover{background:#1f301f}
-    tbody tr.quase-setup{background:#1a1a0a;border-left:3px solid #f0883e}
-    tbody tr.quase-setup:hover{background:#222210}
+    thead th{background:#0f1629;color:#4d6890;font-weight:600;text-align:left;padding:9px 10px;border-bottom:1px solid #1e2d45;white-space:nowrap;cursor:pointer;user-select:none;font-size:.72rem;text-transform:uppercase;letter-spacing:.4px}
+    thead th:hover{color:#8ba4cc}
+    .th-sub{display:block;font-size:.6rem;color:#2a3d5a;font-weight:400;text-transform:none;letter-spacing:0;margin-top:1px}
+    tbody tr{border-bottom:1px solid #111827;transition:background .15s;cursor:pointer}
+    tbody tr:hover{background:#0f1629}
+    tbody tr.setup-completo{background:#0a1e10;border-left:2px solid #3fb950}
+    tbody tr.setup-completo:hover{background:#0d2515}
+    tbody tr.quase-setup{background:#1a1306;border-left:2px solid #f0883e}
+    tbody tr.quase-setup:hover{background:#201808}
     tbody td{padding:9px 10px;white-space:nowrap}
     .symbol{font-weight:700;color:#79c0ff;font-size:.9rem}
-    .positive{color:#3fb950} .negative{color:#f85149} .neutral{color:#8b949e}
+    .sym-bar{height:2px;border-radius:1px;margin-top:3px;background:#1e2d45;width:50px;overflow:hidden}
+    .sym-bar-fill{height:100%;border-radius:1px;transition:width .3s ease}
+    .positive{color:#3fb950} .negative{color:#f85149} .neutral{color:#6a8aaa}
 
     .rsi-badge{padding:2px 9px;border-radius:12px;font-weight:700;font-size:.78rem;display:inline-block}
     .rsi-oversold{background:#3fb95022;color:#3fb950;border:1px solid #3fb950}
     .rsi-overbought{background:#f8514922;color:#f85149;border:1px solid #f85149}
     .rsi-normal{background:#21262d;color:#c9d1d9;border:1px solid #30363d}
 
-    .score-badge{padding:2px 10px;border-radius:12px;font-weight:700;font-size:.82rem;display:inline-block}
-    .s5{background:#1a6335;color:#3fb950;border:1px solid #3fb950}
-    .s3{background:#3fb95022;color:#3fb950;border:1px solid #3fb950}
-    .s1{background:#f0883e22;color:#f0883e;border:1px solid #f0883e}
-    .sn{background:#f8514922;color:#f85149;border:1px solid #f85149}
+    .score-badge{padding:2px 11px;border-radius:20px;font-weight:700;font-size:.80rem;display:inline-block;letter-spacing:.02em}
+    .s5{background:#0a2a18;color:#3fb950;border:1px solid #1a5530}
+    .s3{background:#0d2018;color:#3fb950;border:1px solid #1a4a28}
+    .s1{background:#1e1408;color:#f0883e;border:1px solid #3a2808}
+    .sn{background:#1e0d0d;color:#f85149;border:1px solid #3a1515}
 
-    .rec{display:inline-block;padding:3px 9px;border-radius:6px;font-size:.72rem;font-weight:700}
-    .rec-compra{background:#3fb95033;color:#3fb950}
-    .rec-venda{background:#f8514922;color:#f85149}
-    .rec-neutro{background:#21262d;color:#8b949e}
-    .rec-atencao{background:#f0883e22;color:#f0883e}
-    .rec-setup{background:#1a6335;color:#3fb950;border:1px solid #3fb950;animation:pulse 2s infinite}
+    .rec{display:inline-block;padding:3px 10px;border-radius:20px;font-size:.72rem;font-weight:600;letter-spacing:.01em}
+    .rec-compra{background:#0d2018;color:#3fb950;border:1px solid #1a4a28}
+    .rec-venda{background:#1e0d0d;color:#f85149;border:1px solid #3a1515}
+    .rec-neutro{background:#162030;color:#6a8aaa;border:1px solid #1e2d45}
+    .rec-atencao{background:#1e1408;color:#f0883e;border:1px solid #3a2808}
+    .rec-setup{background:#0a2a18;color:#3fb950;border:1px solid #1a5530;animation:pulse 2s infinite}
     @keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
 
     .div-badge{padding:2px 8px;border-radius:10px;font-size:.72rem;font-weight:700;display:inline-block}
@@ -105,28 +119,31 @@
     .ms-bear{background:#f8514922;color:#f85149;border:1px solid #f85149}
 
     /* Banner BTC risco */
-    .btc-banner{display:none;margin:10px 24px 0;background:#f8514911;border:1px solid #f85149;border-radius:8px;padding:10px 16px;font-size:.82rem;color:#f85149;align-items:center;gap:8px}
+    .btc-banner{display:none;margin:6px 24px 0;background:#1e0d0d;border:1px solid #3a1515;border-radius:10px;padding:9px 16px;font-size:.8rem;color:#f85149;align-items:center;gap:8px}
     .btc-banner.visivel{display:flex}
 
-    /* Market Context Bar — Fear & Greed + BTC Dominance */
-    .mkt-bar{display:none;margin:10px 24px 0;background:#161b22;border:1px solid #30363d;border-radius:8px;padding:10px 18px;gap:20px;flex-wrap:wrap;align-items:center;font-size:.8rem}
-    .mkt-bar.visivel{display:flex}
-    .mkt-item{display:flex;align-items:center;gap:6px;color:#8b949e}
-    .mkt-item strong{color:#e6edf3}
+    /* Market Context Bar */
+    .mkt-bar{display:flex;margin:8px 24px 0;background:#0f1629;border:1px solid #1e2d45;border-radius:12px;padding:10px 20px;gap:0;flex-wrap:wrap;align-items:center;font-size:.78rem}
+    .mkt-item{display:flex;flex-direction:column;gap:2px;padding:0 18px 0 0;margin-right:18px;border-right:1px solid #1e2d45}
+    .mkt-item:last-of-type{border-right:none;margin-right:0;padding-right:0}
+    .mkt-label{font-size:.64rem;color:#4d6890;text-transform:uppercase;letter-spacing:.05em;font-weight:500}
+    .mkt-val{font-size:.88rem;font-weight:700;color:#e6edf3}
+    .mkt-item strong{color:#e6edf3;font-weight:700}
+    .mkt-spacer{flex:1}
     .fg-medo-extremo{color:#3fb950;font-weight:700}
     .fg-medo{color:#79c0ff;font-weight:700}
-    .fg-neutro{color:#8b949e;font-weight:700}
+    .fg-neutro{color:#6a8aaa;font-weight:700}
     .fg-ganancia{color:#f0883e;font-weight:700}
     .fg-ganancia-extrema{color:#f85149;font-weight:700}
-    .cascade-tag{font-size:.58rem;background:#d2a8ff22;color:#d2a8ff;border:1px solid #d2a8ff44;border-radius:3px;padding:0 4px;margin-left:3px}
+    .cascade-tag{font-size:.58rem;background:#d2a8ff18;color:#d2a8ff;border:1px solid #d2a8ff33;border-radius:3px;padding:0 4px;margin-left:3px}
 
     /* MODAL */
-    .modal-overlay{position:fixed;inset:0;background:#000c;z-index:1000;display:none;align-items:center;justify-content:center}
+    .modal-overlay{position:fixed;inset:0;background:#00000099;z-index:1000;display:none;align-items:center;justify-content:center;backdrop-filter:blur(2px)}
     .modal-overlay.aberto{display:flex}
-    .modal-box{background:#161b22;border:1px solid #30363d;border-radius:12px;width:92%;max-width:980px;overflow:hidden}
-    .modal-header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid #30363d}
-    .modal-header h2{font-size:1rem;color:#79c0ff}
-    .modal-close{background:none;border:none;color:#8b949e;font-size:1.3rem;cursor:pointer;padding:4px 8px}
+    .modal-box{background:#0f1629;border:1px solid #1e2d45;border-radius:16px;width:92%;max-width:980px;overflow:hidden}
+    .modal-header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid #1e2d45}
+    .modal-header h2{font-size:1rem;color:#79c0ff;font-weight:600}
+    .modal-close{background:none;border:none;color:#4d6890;font-size:1.3rem;cursor:pointer;padding:4px 8px;border-radius:6px;transition:color .15s}
     .modal-close:hover{color:#e6edf3}
     #tv-container{width:100%;height:460px}
 
@@ -160,10 +177,11 @@
 
     /* HISTÓRICO */
     .hist-stats{display:flex;gap:10px;padding:16px 24px;flex-wrap:wrap}
-    .hist-card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:12px 16px;min-width:130px;flex:1;text-align:center}
-    .hist-card .hl{font-size:.68rem;color:#8b949e;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
+    .hist-card{background:#0f1629;border:1px solid #1e2d45;border-radius:12px;padding:12px 16px;min-width:130px;flex:1;text-align:center;transition:border-color .2s}
+    .hist-card:hover{border-color:#2a3d5a}
+    .hist-card .hl{font-size:.68rem;color:#4d6890;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
     .hist-card .hv{font-size:1.3rem;font-weight:700}
-    .hist-card .hsub{font-size:.65rem;color:#444;margin-top:2px}
+    .hist-card .hsub{font-size:.65rem;color:#2a3d5a;margin-top:2px}
     .res-pos{color:#3fb950;font-weight:700}
     .res-neg{color:#f85149;font-weight:700}
     .res-pen{color:#8b949e;font-size:.75rem}
@@ -191,8 +209,9 @@
     .tab{padding:10px 16px;font-size:.82rem;white-space:nowrap;flex-shrink:0}
 
     /* Market bar — empilha verticalmente */
-    .mkt-bar{margin:8px 12px 0;padding:10px 14px;flex-direction:column;gap:6px;font-size:.78rem}
-    #mkt-contexto{text-align:left!important;font-size:.72rem}
+    .mkt-bar{margin:8px 12px 0;padding:10px 14px;gap:10px;flex-wrap:wrap;font-size:.75rem}
+    .mkt-item{border-right:none;padding-right:0;margin-right:0}
+    #mkt-contexto{font-size:.70rem}
 
     /* BTC banner */
     .btc-banner{margin:8px 12px 0;font-size:.76rem;padding:8px 12px}
@@ -216,10 +235,10 @@
 
     /* Cards mobile */
     #mobile-cards{display:flex;flex-direction:column;gap:10px;padding-bottom:10px}
-    .m-card{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:14px 16px;cursor:pointer;transition:background .15s;-webkit-tap-highlight-color:transparent}
-    .m-card:active{background:#1f2937}
-    .m-card.setup-completo{border-left:4px solid #3fb950;background:#1a2a1a}
-    .m-card.quase-setup{border-left:4px solid #f0883e;background:#1a1a0a}
+    .m-card{background:#0f1629;border:1px solid #1e2d45;border-radius:12px;padding:14px 16px;cursor:pointer;transition:background .15s;-webkit-tap-highlight-color:transparent}
+    .m-card:active{background:#162030}
+    .m-card.setup-completo{border-left:3px solid #3fb950;background:#0a1e10}
+    .m-card.quase-setup{border-left:3px solid #f0883e;background:#1a1306}
     .m-card-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
     .m-symbol{font-size:1.05rem;font-weight:700;color:#79c0ff}
     .m-pair{font-size:.7rem;color:#444;margin-left:2px}
@@ -233,7 +252,7 @@
     .m-var.neg{background:#f8514922;color:#f85149}
     .m-score{font-size:.82rem;font-weight:700;padding:2px 10px;border-radius:8px}
     .m-badges{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}
-    .m-badge{font-size:.65rem;padding:2px 7px;border-radius:6px;background:#21262d;color:#8b949e;border:1px solid #30363d}
+    .m-badge{font-size:.65rem;padding:2px 7px;border-radius:20px;background:#162030;color:#6a8aaa;border:1px solid #1e2d45}
     .m-badge.green{background:#3fb95022;color:#3fb950;border-color:#3fb950}
     .m-badge.orange{background:#f0883e22;color:#f0883e;border-color:#f0883e}
     .m-badge.purple{background:#d2a8ff22;color:#d2a8ff;border-color:#d2a8ff}
@@ -241,9 +260,9 @@
 
     /* Botão fixo no rodapé */
     .fab{display:flex;position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:500;
-         background:#f0883e;color:#0d1117;border:none;border-radius:30px;padding:14px 32px;
-         font-size:.95rem;font-weight:700;cursor:pointer;box-shadow:0 4px 20px #f0883e66;
-         align-items:center;gap:8px;white-space:nowrap}
+         background:linear-gradient(135deg,#f0883e,#c96820);color:#fff;border:none;border-radius:30px;padding:14px 32px;
+         font-size:.95rem;font-weight:700;cursor:pointer;box-shadow:0 4px 24px #f0883e44;
+         align-items:center;gap:8px;white-space:nowrap;font-family:inherit}
     .fab:active{opacity:.85}
     .fab:disabled{opacity:.5}
 
@@ -265,43 +284,62 @@
 <body>
 
 <header>
-  <div>
-    <h1>📊 Crypto Screener Pro</h1>
-    <p>92 moedas · Funding Rate · Divergência RSI · Multi-Timeframe</p>
+  <div class="header-brand">
+    <div class="brand-icon">CS</div>
+    <div>
+      <h1>Crypto Screener Pro</h1>
+      <p>92 moedas · Funding Rate · Divergência RSI · Multi-Timeframe</p>
+    </div>
+    <div class="live-badge">● LIVE</div>
   </div>
   <div class="controls">
     <select id="interval-select">
-      <option value="15m">15 minutos</option>
+      <option value="15m">15 min</option>
       <option value="1h" selected>1 hora</option>
       <option value="4h">4 horas</option>
       <option value="1d">1 dia</option>
     </select>
-    <div class="taxa-brl" id="taxa-display">💵 Carregando cotação...</div>
-    <button class="btn btn-primary" id="scan-btn" onclick="rodarScan()">⚡ Analisar agora</button>
-    <button class="btn btn-ghost" id="btn-som" onclick="toggleSom()" style="font-size:.75rem;padding:6px 12px">🔕 Som</button>
-    <label id="auto-label"><input type="checkbox" id="auto-refresh" checked> Auto (<span id="countdown">60</span>s)</label>
-    <button class="btn btn-ghost" onclick="logout()" style="font-size:.75rem;padding:6px 12px;color:#f85149;border-color:#f85149" title="Sair">🚪 Sair</button>
+    <div class="taxa-brl" id="taxa-display"><i class="ti ti-currency-dollar" aria-hidden="true"></i> Carregando...</div>
+    <button class="btn btn-primary" id="scan-btn" onclick="rodarScan()"><i class="ti ti-bolt" aria-hidden="true"></i> Analisar agora</button>
+    <button class="btn btn-ghost" id="btn-som" onclick="toggleSom()" style="font-size:.75rem;padding:6px 12px"><i class="ti ti-volume-off" id="som-icon" aria-hidden="true"></i></button>
+    <label id="auto-label" style="font-size:.78rem;color:#6a8aaa"><input type="checkbox" id="auto-refresh" checked> Auto (<span id="countdown">60</span>s)</label>
+    <button class="btn btn-ghost" onclick="logout()" style="font-size:.75rem;padding:6px 12px;color:#f85149;border-color:#3a1515" title="Sair"><i class="ti ti-logout" aria-hidden="true"></i></button>
   </div>
 </header>
 
 <div class="tabs">
-  <div class="tab active" onclick="mudarAba('screener',this)">📊 Screener</div>
-  <div class="tab" onclick="mudarAba('telegram',this)">📱 Telegram</div>
-  <div class="tab" id="tab-hist" onclick="mudarAba('historico',this);carregarHistorico()">📋 Histórico</div>
-  <div class="tab" id="tab-est" onclick="mudarAba('estrategia',this);carregarEstrategia()">📈 Estratégia</div>
-  <div class="tab" id="tab-analytics" onclick="mudarAba('analytics',this);carregarAnalytics()">🔬 Analytics</div>
-  <div class="tab" id="tab-health" onclick="mudarAba('health',this);carregarHealth()">🩺 Status</div>
+  <div class="tab active" onclick="mudarAba('screener',this)"><i class="ti ti-chart-bar" aria-hidden="true"></i> Screener</div>
+  <div class="tab" onclick="mudarAba('telegram',this)"><i class="ti ti-brand-telegram" aria-hidden="true"></i> Telegram</div>
+  <div class="tab" id="tab-hist" onclick="mudarAba('historico',this);carregarHistorico()"><i class="ti ti-list-details" aria-hidden="true"></i> Histórico</div>
+  <div class="tab" id="tab-est" onclick="mudarAba('estrategia',this);carregarEstrategia()"><i class="ti ti-trending-up" aria-hidden="true"></i> Estratégia</div>
+  <div class="tab" id="tab-analytics" onclick="mudarAba('analytics',this);carregarAnalytics()"><i class="ti ti-chart-line" aria-hidden="true"></i> Analytics</div>
+  <div class="tab" id="tab-health" onclick="mudarAba('health',this);carregarHealth()"><i class="ti ti-activity" aria-hidden="true"></i> Status</div>
 </div>
 
 <!-- ══════════════════════ ABA SCREENER ══════════════════════ -->
 <div class="tab-content active" id="aba-screener">
 
 
-  <!-- Market Context Bar -->
+  <!-- Market Context Bar — sempre visível -->
   <div class="mkt-bar" id="mkt-bar">
-    <div class="mkt-item">😱 Sentimento do mercado: <strong><span id="fg-value">—</span>/100</strong> &nbsp;— <span id="fg-label" class="fg-neutro">—</span></div>
-    <div class="mkt-item" title="Quanto do mercado cripto está no Bitcoin. Acima de 60%: BTC dominando, altcoins fracas. Abaixo de 45%: alts em alta (Altseason).">₿ Bitcoin domina <strong><span id="btc-dom">—</span>% do mercado</strong></div>
-    <div id="mkt-contexto" style="font-size:.75rem;color:#8b949e;flex:1;text-align:right"></div>
+    <div class="mkt-item">
+      <span class="mkt-label">Fear &amp; Greed</span>
+      <span class="mkt-val"><span id="fg-value">—</span> <span id="fg-label" class="fg-neutro" style="font-size:.75rem;font-weight:500"></span></span>
+    </div>
+    <div class="mkt-item" title="Dominância do Bitcoin. >60%: BTC dominando. <45%: Altseason.">
+      <span class="mkt-label">BTC Dominance</span>
+      <span class="mkt-val"><span id="btc-dom">—</span><span style="font-size:.72rem;color:#4d6890">%</span></span>
+    </div>
+    <div class="mkt-item">
+      <span class="mkt-label">BTC 4H EMA50</span>
+      <span class="mkt-val" id="btc-4h-bar">—</span>
+    </div>
+    <div class="mkt-item">
+      <span class="mkt-label">Score mínimo</span>
+      <span class="mkt-val" id="score-min-bar" style="color:#58a6ff">—</span>
+    </div>
+    <div class="mkt-spacer"></div>
+    <div id="mkt-contexto" style="font-size:.72rem;color:#4d6890"></div>
   </div>
 
   <div class="btc-banner" id="btc-banner">
@@ -314,21 +352,21 @@
   </div>
 
   <div class="summary-cards" id="summary-cards" style="display:none">
-    <div class="card"><div class="label">Total</div><div class="value orange" id="s-total">-</div><div class="sublabel">moedas analisadas</div></div>
-    <div class="card"><div class="label">✅ Possível compra</div><div class="value green" id="s-bullish">-</div><div class="sublabel">oportunidades</div></div>
-    <div class="card"><div class="label">🔥 Setup Completo</div><div class="value green" id="s-setup">-</div><div class="sublabel">todos sinais OK</div></div>
-    <div class="card"><div class="label">⚡ Quase Setup</div><div class="value orange" id="s-quase">-</div><div class="sublabel">monitorar de perto</div></div>
-    <div class="card"><div class="label">🔄 Top 10</div><div class="value orange" id="s-rotation">-</div><div class="sublabel">líderes de momentum</div></div>
+    <div class="card"><div class="label"><i class="ti ti-stack" aria-hidden="true"></i> Total</div><div class="value orange" id="s-total">-</div><div class="sublabel">moedas analisadas</div></div>
+    <div class="card"><div class="label"><i class="ti ti-check" aria-hidden="true"></i> Compra</div><div class="value green" id="s-bullish">-</div><div class="sublabel">oportunidades</div></div>
+    <div class="card"><div class="label"><i class="ti ti-flame" aria-hidden="true"></i> Setup</div><div class="value green" id="s-setup">-</div><div class="sublabel">todos sinais OK</div></div>
+    <div class="card"><div class="label"><i class="ti ti-bolt" aria-hidden="true"></i> Quase Setup</div><div class="value orange" id="s-quase">-</div><div class="sublabel">monitorar de perto</div></div>
+    <div class="card"><div class="label"><i class="ti ti-repeat" aria-hidden="true"></i> Top 10</div><div class="value orange" id="s-rotation">-</div><div class="sublabel">líderes de momentum</div></div>
   </div>
 
   <div class="filters" id="filter-row" style="display:none">
-    <span style="font-size:.78rem;color:#8b949e">Filtrar:</span>
-    <button class="filter-btn active" onclick="setFiltro('todos',this)">🔍 Todas</button>
-    <button class="filter-btn" onclick="setFiltro('setup',this)">🔥 Setup Completo</button>
-    <button class="filter-btn" onclick="setFiltro('quedas',this)">📉 Maiores Quedas</button>
-    <button class="filter-btn" onclick="setFiltro('altas',this)">📈 Maiores Altas</button>
-    <button class="filter-btn" onclick="setFiltro('quase',this)">⚡ Quase Setup</button>
-    <button class="filter-btn" onclick="setFiltro('rotation',this)">🔄 Top 10</button>
+    <span style="font-size:.75rem;color:#4d6890;font-weight:500">Filtrar:</span>
+    <button class="filter-btn active" onclick="setFiltro('todos',this)">Todas</button>
+    <button class="filter-btn" onclick="setFiltro('setup',this)"><i class="ti ti-flame" aria-hidden="true"></i> Setup</button>
+    <button class="filter-btn" onclick="setFiltro('quedas',this)"><i class="ti ti-trending-down" aria-hidden="true"></i> Quedas</button>
+    <button class="filter-btn" onclick="setFiltro('altas',this)"><i class="ti ti-trending-up" aria-hidden="true"></i> Altas</button>
+    <button class="filter-btn" onclick="setFiltro('quase',this)"><i class="ti ti-bolt" aria-hidden="true"></i> Quase</button>
+    <button class="filter-btn" onclick="setFiltro('rotation',this)"><i class="ti ti-repeat" aria-hidden="true"></i> Top 10</button>
   </div>
 
   <div class="table-wrapper">
@@ -760,9 +798,9 @@
       const d=await res.json();
       if(d.taxa){
         taxaBRL=d.taxa;
-        document.getElementById('taxa-display').innerHTML=`💵 Dólar: <strong>R$ ${d.taxa.toFixed(2)}</strong>`;
+        document.getElementById('taxa-display').innerHTML=`<i class="ti ti-currency-dollar" aria-hidden="true"></i> Dólar: <strong>R$ ${d.taxa.toFixed(2)}</strong>`;
       } else {
-        document.getElementById('taxa-display').textContent='💵 Cotação indisponível';
+        document.getElementById('taxa-display').innerHTML=`<i class="ti ti-currency-dollar" aria-hidden="true"></i> Indisponível`;
       }
     }catch(e){
       document.getElementById('taxa-display').textContent='💵 Cotação indisponível';
@@ -779,7 +817,7 @@
   // ── SOM
   function toggleSom(){
     somAtivo=!somAtivo;
-    document.getElementById('btn-som').textContent=somAtivo?'🔔 Som':'🔕 Som';
+    document.getElementById('som-icon').className=somAtivo?'ti ti-volume':'ti ti-volume-off';
     if(somAtivo){
       if(!audioCtx) audioCtx=new(window.AudioContext||window.webkitAudioContext)();
       tocarBip(440,.1);
@@ -841,16 +879,14 @@
 
   function atualizarContextoMercado(ctx){
     if(!ctx) return;
-    const bar=document.getElementById('mkt-bar');
-    bar.classList.add('visivel');
 
     const fg=ctx.fear_greed||{};
     const traduzirFG = v => {
-      if(v<=25)  return '😱 Medo Extremo — boa hora para comprar (contrário)';
-      if(v<=45)  return '😟 Medo — mercado pessimista';
-      if(v<=55)  return '😐 Neutro';
-      if(v<=75)  return '😊 Ganância — mercado otimista';
-      return       '🤑 Ganância Extrema — cuidado, pode estar no topo';
+      if(v<=25)  return 'Medo Extremo';
+      if(v<=45)  return 'Medo';
+      if(v<=55)  return 'Neutro';
+      if(v<=75)  return 'Ganância';
+      return       'Ganância Extrema';
     };
     if(fg.value!=null){
       document.getElementById('fg-value').textContent=fg.value;
@@ -864,14 +900,28 @@
     }
 
     if(ctx.btc_dominance!=null){
-      document.getElementById('btc-dom').textContent=ctx.btc_dominance;
+      const domEl=document.getElementById('btc-dom');
+      domEl.textContent=ctx.btc_dominance;
+      domEl.style.color=ctx.btc_dominance>55?'#f0883e':ctx.btc_dominance<45?'#3fb950':'#e6edf3';
+    }
+
+    // BTC 4H
+    const b4h=document.getElementById('btc-4h-bar');
+    if(ctx.btc_4h==='acima_ema50'){b4h.textContent='Acima';b4h.style.color='#3fb950';}
+    else if(ctx.btc_4h==='abaixo_ema50'){b4h.textContent='Abaixo';b4h.style.color='#f85149';}
+    else{b4h.textContent='—';b4h.style.color='#4d6890';}
+
+    // Score mínimo
+    if(ctx.score_minimo_efetivo!=null){
+      const smEl=document.getElementById('score-min-bar');
+      smEl.textContent=ctx.score_minimo_efetivo;
+      smEl.style.color=ctx.score_minimo_efetivo>=11?'#f85149':ctx.score_minimo_efetivo>=10?'#f0883e':'#58a6ff';
     }
 
     let dica='';
-    const fgv=fg.value;
     const dom=ctx.btc_dominance;
-    if(dom!=null&&dom<45) dica='🌟 Altcoins em alta — boa hora para diversificar';
-    else if(dom!=null&&dom>60) dica='₿ Bitcoin dominando — altcoins mais fracas agora';
+    if(dom!=null&&dom<45) dica='Altcoins em alta';
+    else if(dom!=null&&dom>60) dica='BTC dominando — altcoins fracas';
     document.getElementById('mkt-contexto').textContent=dica;
   }
 
@@ -971,14 +1021,17 @@
       const p=d.preco;
       const precoUSD=formatPreco(p);
       const precoBRL=formatBRL(p)||'—';
-      const btcTag=d.btc_risco?'<span title="BTC em queda — sinais menos confiáveis agora" style="font-size:.58rem;color:#f85149;margin-left:4px;cursor:help">⚠️ BTC caindo</span>':'';
+      const scoreBarPct=Math.min(100,Math.max(0,(d.score+5)/20*100));
+      const scoreBarCol=d.score>=8?'#3fb950':d.score>=4?'#f0883e':'#f85149';
+      const scoreBar=`<div class="sym-bar"><div class="sym-bar-fill" style="width:${scoreBarPct}%;background:${scoreBarCol}"></div></div>`;
+      const btcTag=d.btc_risco?'<span title="BTC em queda — sinais menos confiáveis agora" style="font-size:.58rem;color:#f85149;margin-left:4px;cursor:help"><i class="ti ti-alert-triangle" style="font-size:10px"></i> BTC</span>':'';
       const rank=d.rotation_rank;
       const rankTag=rank&&rank<=10?`<span title="Top ${rank} em força relativa" style="font-size:.58rem;background:#f0883e22;color:#f0883e;border:1px solid #f0883e44;border-radius:3px;padding:0 4px;margin-left:4px;cursor:help">#${rank} força</span>`:'';
       const velaTag=d.padrao_vela==='hammer'?'<span title="Candle Hammer — reversão" style="font-size:.6rem;margin-left:4px;cursor:help">🔨 reversão</span>':d.padrao_vela==='engulfing'?'<span title="Candle Engulfing — virada" style="font-size:.6rem;margin-left:4px;cursor:help">🕯️ virada</span>':'';
       const cascadeTag=(d.setor_cascade&&d.setor_cascade>=3)?`<span title="${d.setor_cascade} moedas do grupo ${traduzirSetor(d.setor)} sinalizando juntas" class="cascade-tag" style="cursor:help">🌊 ${traduzirSetor(d.setor||'')} (${d.setor_cascade})</span>`:'';
       const obTag=d.ob_imbalance!=null&&d.ob_imbalance>0.3?`<span title="Mais compradores (${(d.ob_imbalance*100).toFixed(0)}%)" style="font-size:.58rem;color:#3fb950;margin-left:4px;cursor:help">📚 comprando</span>`:d.ob_imbalance!=null&&d.ob_imbalance<-0.3?`<span title="Mais vendedores (${(Math.abs(d.ob_imbalance)*100).toFixed(0)}%)" style="font-size:.58rem;color:#f85149;margin-left:4px;cursor:help">📚 vendendo</span>`:'';
       tbody.innerHTML+=`<tr class="${rowCls}" onclick="abrirGrafico('${d.symbol}','${sym}')">
-        <td><span class="symbol">${sym}</span><span style="font-size:.65rem;color:#444"> /USDT</span>${btcTag}${rankTag}${velaTag}${cascadeTag}${obTag}</td>
+        <td><span class="symbol">${sym}</span><span style="font-size:.65rem;color:#2a3d5a"> /USDT</span>${btcTag}${rankTag}${velaTag}${cascadeTag}${obTag}${scoreBar}</td>
         <td><strong>${precoUSD}</strong></td>
         <td style="color:#8b949e">${precoBRL}</td>
         <td class="${vc}" style="font-weight:600">${vs}${d.variacao_24h}%</td>

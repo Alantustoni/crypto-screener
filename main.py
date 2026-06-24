@@ -211,8 +211,26 @@ def scan(
         "contexto_mercado": {
             "fear_greed":    get_fear_greed(),
             "btc_dominance": get_btc_dominance(),
+            "btc_4h":        get_btc_4h_tendencia(),
+            "score_minimo_efetivo": _calcular_score_minimo(),
         },
     }
+
+
+def _calcular_score_minimo() -> int:
+    """Retorna o score mínimo efetivo com todos os ajustes aplicados."""
+    try:
+        cfg = carregar_config_screener()
+        base = int(cfg.get("score_minimo_setup", 8))
+        fg = get_fear_greed()
+        fg_v = (fg or {}).get("value")
+        dom = get_btc_dominance()
+        btc4h = get_btc_4h_tendencia()
+        return base + (2 if fg_v is not None and fg_v <= 25 else 0) \
+                    + (1 if dom is not None and dom > 55 else 0) \
+                    + (1 if btc4h == "abaixo_ema50" else 0)
+    except Exception:
+        return 8
 
 
 @app.get("/api/mercado")
@@ -220,6 +238,8 @@ def contexto_mercado():
     return {
         "fear_greed":    get_fear_greed(),
         "btc_dominance": get_btc_dominance(),
+        "btc_4h":        get_btc_4h_tendencia(),
+        "score_minimo_efetivo": _calcular_score_minimo(),
     }
 
 
