@@ -1766,9 +1766,10 @@
 
       // ── Modo
       const modoEl = document.getElementById('h-modo');
-      const modo = d.modo || 'NORMAL';
-      modoEl.textContent = modo;
-      modoEl.style.color = modo==='CONSERVADOR EXTREMO'?'#f85149':modo==='CONSERVADOR'?'#e3b341':'#3fb950';
+      const modoRaw = (d.modo || 'normal').toLowerCase().replace(/\s+/g,'_');
+      const modoLabel = modoRaw==='conservador_extremo'?'CONSERVADOR EXTREMO':modoRaw==='conservador'?'CONSERVADOR':'NORMAL';
+      modoEl.textContent = modoLabel;
+      modoEl.style.color = modoRaw==='conservador_extremo'?'#f85149':modoRaw==='conservador'?'#e3b341':'#3fb950';
       document.getElementById('h-score-min').textContent = d.score_minimo_efetivo ?? '—';
 
       // Ajustes breakdown
@@ -1783,14 +1784,14 @@
 
       // ── Mercado
       const mkt = d.mercado || {};
-      const fg = mkt.fear_greed ?? null;
+      const fg = mkt.fg_value ?? null;
       document.getElementById('h-fg').textContent = fg!=null ? fg : '—';
       const fgLabel = fg==null?'—':fg<=25?'😱 Medo Extremo':fg<=45?'😟 Medo':fg<=55?'😐 Neutro':fg<=75?'😊 Ganância':'🤑 G. Extrema';
       const fgEl = document.getElementById('h-fg-label');
       fgEl.textContent = fgLabel;
       fgEl.style.color = fg==null?'#555':fg<=25||fg>=80?'#f85149':fg<=45?'#e3b341':'#3fb950';
 
-      const dom = mkt.btc_dominance ?? null;
+      const dom = mkt.btc_dom ?? null;
       document.getElementById('h-btcdom').textContent = dom!=null ? dom+'%' : '—';
       const domEl = document.getElementById('h-btcdom-label');
       domEl.textContent = dom==null?'—':dom>60?'₿ BTC dominando':dom<45?'🌟 Altseason':'⚖️ Equilíbrio';
@@ -1835,21 +1836,21 @@
       // ── Circuit Breakers
       const cb = d.circuit_breakers || {};
       const cbParts = [];
-      if(cb.portfolio_ativo) cbParts.push(`<span style="color:#f85149;font-weight:700">🛑 Portfólio bloqueado (P&L < -5%)</span>`);
+      if(cb.portfolio) cbParts.push(`<span style="color:#f85149;font-weight:700">🛑 Portfólio bloqueado (P&L < -5%)</span>`);
       else cbParts.push(`<span style="color:#3fb950">✅ Portfólio OK</span>`);
-      if(cb.sequencial_ativo) cbParts.push(`<span style="color:#f85149;font-weight:700"> · 🔴 ${cb.losses_sequenciais} losses seguidos — pausado</span>`);
       document.getElementById('h-cb-content').innerHTML = cbParts.join('');
       document.getElementById('health-cb-wrap').style.display='block';
 
       // ── Calibração
       const cal = d.calibracao || {};
       const desde = cal.sinais_desde_calibracao ?? 0;
-      const trigger = cal.proximo_trigger_em ?? 50;
-      const pct = Math.min(100, Math.round(desde / trigger * 100));
+      const triggerTotal = cal.trigger_total ?? 50;
+      const faltam = cal.proximo_trigger_em ?? (triggerTotal - desde);
+      const pct = Math.min(100, Math.round(desde / triggerTotal * 100));
       document.getElementById('h-cal-desde').textContent = desde;
-      document.getElementById('h-cal-prox').textContent = `Próximo em ${trigger - desde} sinais`;
+      document.getElementById('h-cal-prox').textContent = `Próximo em ${faltam} sinais`;
       document.getElementById('h-cal-bar').style.width = pct+'%';
-      document.getElementById('h-cal-pct').textContent = pct+'%';
+      document.getElementById('h-cal-pct').textContent = desde+'/'+triggerTotal+' ('+pct+'%)';
       document.getElementById('h-cal-ultima').textContent = cal.ultima_calibracao
         ? 'Última: '+new Date(cal.ultima_calibracao+'Z').toLocaleString('pt-BR')
         : 'Nenhuma calibração ainda';
