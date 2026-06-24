@@ -79,7 +79,7 @@ def _taxa_brl():
         return None
 
 
-def _pl_simulado(h, pos, SL=3.0, TP1=5.0, TP2=10.0):
+def _pl_simulado(h, pos, SL=3.0, TP1=3.0, TP2=6.0):
     # TP2: 50% vendido no pico TP1 real + 50% no pico TP2 real
     if h.get("tp2_automatico"):
         return (h.get("tp1_automatico_pct", TP1) / 100 * pos * 0.5) + \
@@ -148,7 +148,7 @@ def checar_e_alertar(resultados):
             continue
 
         preco     = float(r["preco"])
-        sl_pct    = 3.0; tp1_pct = 5.0; tp2_pct = 10.0; trail_pct = 3.0
+        sl_pct    = 3.0; tp1_pct = 3.0; tp2_pct = 6.0; trail_pct = 2.0
         sl_preco  = round(preco * (1 - sl_pct  / 100), 6)
         tp1_preco = round(preco * (1 + tp1_pct / 100), 6)
         tp2_preco = round(preco * (1 + tp2_pct / 100), 6)

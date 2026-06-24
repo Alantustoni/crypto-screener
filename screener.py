@@ -93,7 +93,7 @@ _CONFIG_DEFAULTS: dict = {
     "fr_penalidade":           1,
     "fr_fraca_threshold":      -1.5,
     "ob_threshold":            0.30,
-    "ob_bonus":                2,
+    "ob_bonus":                1,
     "ob_penalidade":           2,
     "mtf_bonus":               2,
     "mtf_contradiz_penalidade":3,
@@ -163,6 +163,12 @@ _oi_cache: dict = {}
 # Fear & Greed e BTC Dominance (cache 1h)
 _fear_greed_cache: dict = {"value": None, "label": None, "ts": None}
 _dominance_cache:  dict = {"value": None, "ts": None}
+
+# BTC EMA50 no 4H (cache 1h)
+_btc_4h_cache: dict = {"tendencia": None, "ts": None}
+
+# Long/Short Ratio da Binance FAPI (cache 30min por símbolo)
+_ls_cache: dict = {}
 
 
 # ─────────────────────────── INDICADORES ───────────────────────────
@@ -463,6 +469,59 @@ def get_btc_dominance() -> float | None:
         return val
     except Exception:
         return _dominance_cache.get("value")
+
+
+def get_btc_4h_tendencia() -> str | None:
+    """
+    Verifica se o BTC está acima ou abaixo da EMA50 no gráfico de 4H. Cache 1h.
+    'acima_ema50' = macro bullish | 'abaixo_ema50' = macro bearish para altcoins.
+    """
+    global _btc_4h_cache
+    agora = datetime.now()
+    ts = _btc_4h_cache.get("ts")
+    if ts and (agora - ts).total_seconds() < 3600:
+        return _btc_4h_cache["tendencia"]
+    try:
+        klines = get_klines("BTCUSDT", interval="4h", limit=55)
+        if not klines or len(klines) < 50:
+            return None
+        closes_4h = [float(k[4]) for k in klines]
+        ema50_4h  = calcular_ema(closes_4h, 50)[-1]
+        tendencia = "acima_ema50" if closes_4h[-1] > ema50_4h else "abaixo_ema50"
+        _btc_4h_cache = {"tendencia": tendencia, "ts": agora}
+        return tendencia
+    except Exception:
+        return None
+
+
+def get_long_short_ratio(symbol: str) -> float | None:
+    """
+    Long/Short Account Ratio global da Binance FAPI. Cache 30min por símbolo.
+    Ratio = longs/shorts. Ex: 2.0 = 67% do mercado está comprado (long).
+    > 2.5 = varejo sobrecarregado long → risco de liquidação descendente (-2)
+    > 1.8 = muito long → cautela (-1)
+    < 0.55 = maioria short → short squeeze potencial (+1)
+    < 0.4  = extremo short → squeeze elevado (+2)
+    """
+    global _ls_cache
+    agora = datetime.now()
+    cached = _ls_cache.get(symbol)
+    if cached and (agora - cached[0]).total_seconds() < 1800:
+        return cached[1]
+    try:
+        r = _get(
+            "https://fapi.binance.com/futures/data/globalLongShortAccountRatio",
+            params={"symbol": symbol, "period": "1h", "limit": 1},
+            timeout=5
+        )
+        data = r.json()
+        if isinstance(data, list) and data:
+            ratio = float(data[0]["longShortRatio"])
+            _ls_cache[symbol] = (agora, ratio)
+            return ratio
+    except Exception:
+        pass
+    return None
 
 
 def get_order_book_imbalance(symbol: str, depth: int = 20) -> float | None:
@@ -811,7 +870,9 @@ def analisar_par(symbol: str, interval: str = "1h",
         veio_de_oversold = any(r < 40 for r in rsi_recente[:-1])   # era 35, agora 40
         slope_positivo   = rsi_recente[-1] > rsi_recente[-2] > rsi_recente[-3]
         acima_de_38      = rsi_recente[-1] > 38
-        if veio_de_oversold and acima_de_38 and slope_positivo:
+        # Só conta como recovery se preço estiver acima da EMA50 (evita "gato morto")
+        preco_acima_ema50 = closes[-1] > base["ema50"]
+        if veio_de_oversold and acima_de_38 and slope_positivo and preco_acima_ema50:
             rsi_recovery = True
             base["sinais"].append(f"🔄 RSI Recovery ({round(rsi_recente[-1],1)})")
             base["score"] += 2
@@ -887,6 +948,31 @@ def analisar_par(symbol: str, interval: str = "1h",
             base["sinais"].append(f"📚 OB {ob_imbalance:+.2f} (vendedores dominando)")
             base["score"] -= cfg["ob_penalidade"]
 
+    # ── Long/Short Ratio (Binance FAPI) — sentimento do mercado de derivativos
+    # Quando 70%+ do varejo está comprado, market makers caçam esses stops para baixo.
+    ls_ratio = None
+    ls_sinal = None
+    if symbol != "BTCUSDT":
+        ls_ratio = get_long_short_ratio(symbol)
+        if ls_ratio is not None:
+            long_pct = round(ls_ratio / (1 + ls_ratio) * 100, 1)
+            if ls_ratio > 2.5:
+                ls_sinal = "extremo_long"
+                base["sinais"].append(f"🚨 L/S {long_pct}% long — varejo sobrecarregado (risco caçada de stops!)")
+                base["score"] -= 2
+            elif ls_ratio > 1.8:
+                ls_sinal = "muito_long"
+                base["sinais"].append(f"⚠️ L/S {long_pct}% long — varejo muito long, cautela")
+                base["score"] -= 1
+            elif ls_ratio < 0.4:
+                ls_sinal = "extremo_short"
+                base["sinais"].append(f"🔥 L/S {long_pct}% long — short squeeze elevado!")
+                base["score"] += 2
+            elif ls_ratio < 0.55:
+                ls_sinal = "short_squeeze"
+                base["sinais"].append(f"💹 L/S {long_pct}% long — potencial short squeeze")
+                base["score"] += 1
+
     # ── Fear & Greed — contexto global de sentimento do mercado
     # NOTA: Medo extremo em sinais 1h = risco, não oportunidade contrária.
     # Contrarian só funciona em horizonte de dias/semanas, não em entradas horárias.
@@ -927,6 +1013,34 @@ def analisar_par(symbol: str, interval: str = "1h",
             base["score"] -= 1
             btc_change_pct = btc_trend_6
 
+    # ── BTC EMA50 no 4H — filtro macro de tendência
+    btc_4h_tendencia = (btc_data or {}).get("btc_4h_tendencia")
+    if symbol != "BTCUSDT":
+        if btc_4h_tendencia == "abaixo_ema50":
+            base["sinais"].append("📉 BTC abaixo EMA50(4H) — tendência macro negativa")
+            base["score"] -= 2
+        elif btc_4h_tendencia == "acima_ema50":
+            base["sinais"].append("📈 BTC acima EMA50(4H) — macro favorável")
+            base["score"] += 1
+
+    # ── Modo Sniper: força relativa durante queda do BTC
+    # Quando BTC cai >1% e a moeda fica flat/positiva com volume → institucional comprando.
+    # É o setup de maior probabilidade em crypto de curto prazo.
+    sniper_mode = False
+    if btc_data and symbol != "BTCUSDT":
+        btc_closes_all = btc_data.get("closes", [])
+        if len(btc_closes_all) >= 2:
+            btc_ultimo_candle = round((btc_closes_all[-1] - btc_closes_all[-2]) / btc_closes_all[-2] * 100, 2)
+            coin_ultimo_candle = round((closes[-1] - closes[-2]) / closes[-2] * 100, 2)
+            if btc_ultimo_candle < -1.0 and coin_ultimo_candle > -0.2 and ratio_vol >= 1.5:
+                sniper_mode = True
+                base["sinais"].append(
+                    f"🎯 SNIPER: BTC {btc_ultimo_candle}% | "
+                    f"{symbol.replace('USDT','')} {'+' if coin_ultimo_candle >= 0 else ''}"
+                    f"{coin_ultimo_candle}% (força institucional!)"
+                )
+                base["score"] += 3
+
     # ── Ticker 24h
     ticker       = get_ticker_24h(symbol)
     variacao_24h = round(float(ticker.get("priceChangePercent", 0)), 2)
@@ -960,6 +1074,8 @@ def analisar_par(symbol: str, interval: str = "1h",
         score_minimo_efetivo += 2   # Medo extremo: exige score muito alto
     if btc_dom is not None and btc_dom > 55:
         score_minimo_efetivo += 1   # Alta dominância BTC: altcoins em desvantagem
+    if btc_4h_tendencia == "abaixo_ema50" and symbol != "BTCUSDT":
+        score_minimo_efetivo += 1   # BTC em tendência macro negativa: exige mais força
 
     # ── Volume bloqueio duro ───────────────────────────────────────────────
     # Se volume < 55% da média E não há anomalia estatística → bloqueia entrada
@@ -1034,6 +1150,10 @@ def analisar_par(symbol: str, interval: str = "1h",
         "tendencia_diaria":      tendencia_diaria,
         "ema_distancia_pct":     ema_distancia_pct,
         "volume_confirmado":     volume_confirmado,
+        "sniper_mode":           sniper_mode,
+        "ls_ratio":              ls_ratio,
+        "ls_sinal":              ls_sinal,
+        "btc_4h_tendencia":      btc_4h_tendencia,
     }
 
 
@@ -1166,9 +1286,10 @@ def rodar_screener(interval: str = "1h", top_n: int = 100) -> list:
         btc_change = round((btc_closes[-1] - btc_closes[-24]) / btc_closes[-24] * 100, 2)
         macro_bloqueado = btc_change <= -5.0
         btc_data = {
-            "closes":         btc_closes,
-            "change_pct":     btc_change,
-            "macro_bloqueado": macro_bloqueado,
+            "closes":            btc_closes,
+            "change_pct":        btc_change,
+            "macro_bloqueado":   macro_bloqueado,
+            "btc_4h_tendencia":  get_btc_4h_tendencia(),
         }
 
     pares = TOP_PAIRS[:top_n]

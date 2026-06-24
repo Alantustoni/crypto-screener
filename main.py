@@ -44,7 +44,7 @@ app.add_middleware(AuthMiddleware)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 _CONFIG_PATH = Path(__file__).parent / "screener_config.json"
-_CALIBRACAO_TRIGGER = 10
+_CALIBRACAO_TRIGGER = 50
 
 
 def _ler_config_json():
@@ -367,7 +367,7 @@ def api_analytics():
     from collections import defaultdict
 
     historico_data = carregar_historico()
-    SL = 3.0; TP1 = 5.0; TP2 = 10.0
+    SL = 3.0; TP1 = 3.0; TP2 = 6.0
 
     tg_cfg     = carregar_config()
     base_valor = float(tg_cfg.get("base_valor_trade", 20))
@@ -428,6 +428,7 @@ def api_analytics():
     ganhos = sum(f["pl"] for f in fechados if f["pl"] > 0)
     perdas = abs(sum(f["pl"] for f in fechados if f["pl"] < 0))
     profit_factor = round(ganhos / perdas, 2) if perdas > 0 else None
+
 
     # EV por score
     ev_score = defaultdict(lambda: {"wins": 0, "losses": 0, "sum_win": 0.0, "sum_loss": 0.0})

@@ -44,7 +44,7 @@ REGIME_BTC_CANDLES  = 6
 REGIME_BTC_QUEDA    = -1.5
 REGIME_FG_MAXIMO    = 25
 
-BREAKEVEN_TRIGGER_PCT = 2.0
+BREAKEVEN_TRIGGER_PCT = 1.5
 TRAILING_TP1_PCT      = 2.0
 
 CHECKPOINTS = [
@@ -55,8 +55,8 @@ CHECKPOINTS = [
     (1440, "resultado_24h"),
 ]
 STOP_LOSS_PCT = -3.0
-TAKE_PROFIT_1 =  5.0
-TAKE_PROFIT_2 = 10.0
+TAKE_PROFIT_1 =  3.0
+TAKE_PROFIT_2 =  6.0
 
 
 # ════════════════════════════════════════════════════════════════════════════
