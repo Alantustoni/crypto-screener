@@ -1,9 +1,11 @@
 """
-Historico de Sinais — backend SQLite (substitui signal_history.json).
+Historico de Sinais — backend PostgreSQL (Railway) com fallback SQLite (local).
 Interface pública idêntica: carregar_historico() -> list[dict],
 salvar_historico(list[dict]) -> None.
-SQLite garante escrita atomica: sem truncacao por sync do OneDrive.
-DB fica em AppData/Local (fora do OneDrive).
+
+Detecção automática:
+  - DATABASE_URL definida → PostgreSQL (Railway, persistente entre deploys)
+  - Sem DATABASE_URL       → SQLite local (desenvolvimento)
 """
 import json
 import os
@@ -13,28 +15,35 @@ from datetime import datetime
 from screener import get_ticker_24h, get_fear_greed, get_klines
 
 
-# ── Diretórios ──────────────────────────────────────────────────────────────
-# DB em AppData\Local (fora do OneDrive -> sem interferencia de sync)
+# ── Configuração de ambiente ──────────────────────────────────────────────────
+DATABASE_URL = os.environ.get("DATABASE_URL")  # Railway define automaticamente
+
+
+def _usar_postgres() -> bool:
+    return bool(DATABASE_URL)
+
+
+# ── Diretórios (SQLite local) ─────────────────────────────────────────────────
 def _get_db_dir() -> Path:
     if os.environ.get("DATA_DIR"):
         return Path(os.environ["DATA_DIR"])
-    local_app = os.environ.get("LOCALAPPDATA")   # C:\Users\...\AppData\Local
+    local_app = os.environ.get("LOCALAPPDATA")
     if local_app:
         p = Path(local_app) / "crypto-screener"
         p.mkdir(parents=True, exist_ok=True)
         return p
-    return Path(__file__).parent  # fallback (Linux/Railway)
+    return Path(__file__).parent
 
-_DATA_DIR   = Path(__file__).parent            # pasta do projeto (configs, JSONs)
-_DB_DIR     = _get_db_dir()                    # AppData\Local (sem sync OneDrive)
-DB_PATH     = _DB_DIR  / "signal_history.db"
+_DATA_DIR   = Path(__file__).parent
+_DB_DIR     = _get_db_dir()
+DB_PATH     = _DB_DIR / "signal_history.db"
 LEGACY_JSON = _DATA_DIR / "signal_history.json"
 
 
-# ── Constantes ───────────────────────────────────────────────────────────────
+# ── Constantes ────────────────────────────────────────────────────────────────
 SCORE_MINIMO      = 8
-COOLDOWN_WIN_MIN  = 240    # 4h se ultima entrada na moeda foi WIN
-COOLDOWN_LOSS_MIN = 480    # 8h se ultima entrada na moeda foi LOSS
+COOLDOWN_WIN_MIN  = 240
+COOLDOWN_LOSS_MIN = 480
 
 CIRCUIT_BREAKER_N     = 3
 CIRCUIT_BREAKER_HORAS = 3
@@ -60,18 +69,88 @@ TAKE_PROFIT_2 =  6.0
 
 
 # ════════════════════════════════════════════════════════════════════════════
-#  CAMADA DE PERSISTÊNCIA — SQLite
+#  CAMADA PostgreSQL
 # ════════════════════════════════════════════════════════════════════════════
 
-def _conectar() -> sqlite3.Connection:
+def _pg_conectar():
+    import psycopg2
+    url = DATABASE_URL
+    # Railway usa postgres:// mas psycopg2 precisa de postgresql://
+    if url and url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql://", 1)
+    return psycopg2.connect(url)
+
+
+def _pg_criar_tabela():
+    conn = _pg_conectar()
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS sinais (
+                id             INTEGER PRIMARY KEY,
+                timestamp      TEXT    NOT NULL,
+                symbol         TEXT    NOT NULL,
+                setup_completo INTEGER NOT NULL DEFAULT 0,
+                dados          TEXT    NOT NULL
+            )
+        """)
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_symbol    ON sinais(symbol)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_timestamp ON sinais(timestamp)")
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _pg_carregar() -> list:
+    conn = _pg_conectar()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT dados FROM sinais ORDER BY timestamp ASC")
+        rows = cur.fetchall()
+        return [json.loads(r[0]) for r in rows]
+    finally:
+        conn.close()
+
+
+def _pg_salvar(historico: list):
+    conn = _pg_conectar()
+    try:
+        cur = conn.cursor()
+        cur.execute("BEGIN")
+        cur.execute("DELETE FROM sinais")
+        for h in historico:
+            cur.execute(
+                "INSERT INTO sinais (id, timestamp, symbol, setup_completo, dados) "
+                "VALUES (%s, %s, %s, %s, %s)",
+                (
+                    h.get("id"),
+                    h.get("timestamp", ""),
+                    h.get("symbol", ""),
+                    int(h.get("setup_completo", False)),
+                    json.dumps(h, ensure_ascii=False),
+                ),
+            )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+# ════════════════════════════════════════════════════════════════════════════
+#  CAMADA SQLite (local / fallback)
+# ════════════════════════════════════════════════════════════════════════════
+
+def _sqlite_conectar() -> sqlite3.Connection:
     conn = sqlite3.connect(str(DB_PATH), timeout=15)
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA synchronous=NORMAL")
     return conn
 
 
-def _criar_tabela():
-    with _conectar() as conn:
+def _sqlite_criar_tabela():
+    with _sqlite_conectar() as conn:
         conn.execute("""
             CREATE TABLE IF NOT EXISTS sinais (
                 id             INTEGER PRIMARY KEY,
@@ -85,7 +164,7 @@ def _criar_tabela():
         conn.execute("CREATE INDEX IF NOT EXISTS idx_timestamp ON sinais(timestamp)")
 
 
-def _migrar_json():
+def _sqlite_migrar_json():
     """Importa signal_history.json para o SQLite na primeira execucao."""
     if not LEGACY_JSON.exists():
         return
@@ -96,8 +175,7 @@ def _migrar_json():
             return
     except Exception:
         return
-
-    with _conectar() as conn:
+    with _sqlite_conectar() as conn:
         count = conn.execute("SELECT COUNT(*) FROM sinais").fetchone()[0]
         if count > 0:
             LEGACY_JSON.rename(LEGACY_JSON.with_suffix(".json.bak"))
@@ -119,22 +197,17 @@ def _migrar_json():
     LEGACY_JSON.rename(LEGACY_JSON.with_suffix(".json.bak"))
 
 
-# Inicializacao na carga do modulo
-_criar_tabela()
-_migrar_json()
-
-
-def carregar_historico() -> list:
-    with _conectar() as conn:
+def _sqlite_carregar() -> list:
+    with _sqlite_conectar() as conn:
         rows = conn.execute(
             "SELECT dados FROM sinais ORDER BY timestamp ASC"
         ).fetchall()
     return [json.loads(r[0]) for r in rows]
 
 
-def salvar_historico(historico: list):
+def _sqlite_salvar(historico: list):
     _DB_DIR.mkdir(parents=True, exist_ok=True)
-    with _conectar() as conn:
+    with _sqlite_conectar() as conn:
         conn.execute("BEGIN EXCLUSIVE")
         conn.execute("DELETE FROM sinais")
         conn.executemany(
@@ -151,6 +224,35 @@ def salvar_historico(historico: list):
             ],
         )
         conn.execute("COMMIT")
+
+
+# ════════════════════════════════════════════════════════════════════════════
+#  INTERFACE PÚBLICA — detecta automaticamente o backend
+# ════════════════════════════════════════════════════════════════════════════
+
+def _criar_tabela():
+    if _usar_postgres():
+        _pg_criar_tabela()
+    else:
+        _sqlite_criar_tabela()
+        _sqlite_migrar_json()
+
+
+def carregar_historico() -> list:
+    if _usar_postgres():
+        return _pg_carregar()
+    return _sqlite_carregar()
+
+
+def salvar_historico(historico: list):
+    if _usar_postgres():
+        _pg_salvar(historico)
+    else:
+        _sqlite_salvar(historico)
+
+
+# Inicialização na carga do módulo
+_criar_tabela()
 
 
 # ════════════════════════════════════════════════════════════════════════════
