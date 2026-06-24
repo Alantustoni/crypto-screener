@@ -7,7 +7,7 @@ from fastapi import FastAPI, Query, Request, Response
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
-from screener import rodar_screener, INTERVALOS, TOP_PAIRS, get_ticker_24h, get_fear_greed, get_btc_dominance, analisar_risco_posicao, carregar_config_screener
+from screener import rodar_screener, INTERVALOS, TOP_PAIRS, get_ticker_24h, get_fear_greed, get_btc_dominance, get_btc_4h_tendencia, analisar_risco_posicao, carregar_config_screener
 from backtesting import backtest
 from telegram_alert import checar_e_alertar, testar_conexao, carregar_config, salvar_config, enviar_relatorio_diario, enviar_resumo_posicoes, enviar_fechamento, processar_comandos
 from signal_history import registrar_sinais, registrar_manual, verificar_resultados, obter_historico_com_stats, carregar_historico, calcular_calibracao, monitorar_stops_ativos
@@ -688,6 +688,131 @@ def taxa_brl():
     except Exception:
         pass
     return {"taxa": None, "erro": "Nao foi possivel obter a cotacao."}
+
+
+@app.get("/api/health")
+def health_check():
+    """Painel de saúde — consolida contexto, filtros ativos, performance e calibração."""
+    from datetime import date as _date, datetime as _dt
+
+    # ── Contexto de mercado ──────────────────────────────────────────
+    fg      = get_fear_greed()
+    btc_dom = get_btc_dominance()
+    btc_4h  = get_btc_4h_tendencia()
+    fg_value = (fg or {}).get("value")
+
+    # ── Score mínimo efetivo ─────────────────────────────────────────
+    config_s  = carregar_config_screener()
+    score_base = int(config_s.get("score_minimo_setup", 8))
+    fg_ajuste      = 2 if (fg_value is not None and fg_value <= 25) else 0
+    btc_dom_ajuste = 1 if (btc_dom is not None and btc_dom > 55) else 0
+    btc_4h_ajuste  = 1 if btc_4h == "abaixo_ema50" else 0
+    score_min_efetivo = score_base + fg_ajuste + btc_dom_ajuste + btc_4h_ajuste
+
+    if score_min_efetivo >= 11:
+        modo = "conservador_extremo"
+    elif score_min_efetivo >= 10:
+        modo = "conservador"
+    else:
+        modo = "normal"
+
+    # ── Histórico ────────────────────────────────────────────────────
+    historico   = carregar_historico()
+    hoje_str    = str(_date.today())
+    tg_cfg      = carregar_config()
+    base_valor  = float(tg_cfg.get("base_valor_trade", 20))
+    capital     = float(tg_cfg.get("capital_total", 200))
+
+    def _pos(h):
+        s = h.get("score", 8)
+        mult = 2.0 if s >= 10 else 1.5 if s >= 9 else 1.0
+        return min(base_valor * mult, capital * 0.10) if capital > 0 else base_valor * mult
+
+    def _fechado(h):
+        return bool(h.get("stop_automatico")) or h.get("resultado_8h") is not None
+
+    setups_hoje = [
+        h for h in historico
+        if h.get("setup_completo") and h.get("timestamp", "").startswith(hoje_str)
+    ]
+
+    # P&L hoje
+    pl_hoje = 0.0
+    for h in setups_hoje:
+        vals = [h.get(c) for c in ["resultado_1h","resultado_2h","resultado_4h","resultado_8h"] if h.get(c) is not None]
+        if vals:
+            pl_hoje += vals[-1] / 100 * _pos(h)
+
+    # Fechados — últimas 10 + geral
+    fechados = [h for h in historico if h.get("setup_completo") and _fechado(h)]
+    ult10    = fechados[-10:]
+
+    def _win(lst):
+        wins = sum(
+            1 for h in lst
+            if any(h.get(c, None) is not None and h.get(c, 0) > 0
+                   for c in ["resultado_1h","resultado_2h","resultado_4h","resultado_8h"])
+        )
+        return round(wins / len(lst) * 100) if lst else None
+
+    # Profit Factor simples
+    ganhos = perdas = 0.0
+    for h in fechados:
+        vals = [h.get(c) for c in ["resultado_1h","resultado_2h","resultado_4h","resultado_8h"] if h.get(c) is not None]
+        if not vals:
+            continue
+        pl = vals[-1] / 100 * _pos(h)
+        if pl > 0:
+            ganhos += pl
+        else:
+            perdas += abs(pl)
+    pf = round(ganhos / perdas, 2) if perdas > 0 else None
+
+    # Circuit breaker portfolio
+    cb_portfolio = capital > 0 and pl_hoje < -(capital * 0.05)
+
+    # Calibração
+    raw_cfg  = _ler_config_json()
+    sinais_c = raw_cfg.get("sinais_desde_calibracao", 0)
+
+    return {
+        "timestamp":           _dt.now().isoformat(timespec="seconds"),
+        "modo":                modo,
+        "score_minimo_efetivo": score_min_efetivo,
+        "ajustes": {
+            "base":    score_base,
+            "fg":      fg_ajuste,
+            "btc_dom": btc_dom_ajuste,
+            "btc_4h":  btc_4h_ajuste,
+        },
+        "mercado": {
+            "fg_value": fg_value,
+            "fg_label": (fg or {}).get("label"),
+            "btc_dom":  btc_dom,
+            "btc_4h":   btc_4h,
+        },
+        "hoje": {
+            "data":     hoje_str,
+            "sinais":   len(setups_hoje),
+            "pl_hoje":  round(pl_hoje, 2),
+        },
+        "performance": {
+            "win_rate_10":    _win(ult10),
+            "win_rate_geral": _win(fechados),
+            "total_fechados": len(fechados),
+            "profit_factor":  pf,
+        },
+        "circuit_breakers": {
+            "portfolio": cb_portfolio,
+        },
+        "calibracao": {
+            "sinais_desde_calibracao": sinais_c,
+            "proximo_trigger_em":      max(0, _CALIBRACAO_TRIGGER - sinais_c),
+            "trigger_total":           _CALIBRACAO_TRIGGER,
+            "score_minimo_atual":      score_base,
+            "ultima_calibracao":       raw_cfg.get("ultima_calibracao"),
+        },
+    }
 
 
 @app.get("/api/restart")

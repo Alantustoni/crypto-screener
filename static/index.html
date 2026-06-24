@@ -290,6 +290,7 @@
   <div class="tab" id="tab-hist" onclick="mudarAba('historico',this);carregarHistorico()">📋 Histórico</div>
   <div class="tab" id="tab-est" onclick="mudarAba('estrategia',this);carregarEstrategia()">📈 Estratégia</div>
   <div class="tab" id="tab-analytics" onclick="mudarAba('analytics',this);carregarAnalytics()">🔬 Analytics</div>
+  <div class="tab" id="tab-health" onclick="mudarAba('health',this);carregarHealth()">🩺 Status</div>
 </div>
 
 <!-- ══════════════════════ ABA SCREENER ══════════════════════ -->
@@ -638,6 +639,99 @@
     <p>Nenhum dado fechado ainda.<br>Aguarde os checkpoints de 8h/24h das suas operações.</p>
   </div>
 
+</div>
+
+<!-- HEALTH CHECK TAB -->
+<div class="tab-content" id="aba-health">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+    <div style="font-size:1rem;font-weight:700;color:#e6edf3">🩺 Painel de Saúde do Sistema</div>
+    <button onclick="carregarHealth()" style="background:#21262d;border:1px solid #30363d;color:#8b949e;border-radius:8px;padding:5px 14px;cursor:pointer;font-size:.78rem">🔄 Atualizar</button>
+  </div>
+  <div id="health-status" style="color:#8b949e;font-size:.8rem;margin-bottom:12px"><span class="spinner"></span> Carregando...</div>
+
+  <!-- MODO DO SISTEMA -->
+  <div id="health-modo-wrap" style="display:none;margin-bottom:16px">
+    <div style="background:#161b22;border:1px solid #30363d;border-radius:10px;padding:14px 18px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+      <div>
+        <div style="font-size:.72rem;color:#8b949e;font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Modo do Sistema</div>
+        <div id="h-modo" style="font-size:1.2rem;font-weight:800;letter-spacing:.03em">—</div>
+      </div>
+      <div style="margin-left:auto;text-align:right">
+        <div style="font-size:.72rem;color:#8b949e;margin-bottom:2px">Score mínimo efetivo</div>
+        <div id="h-score-min" style="font-size:1.6rem;font-weight:900;color:#58a6ff">—</div>
+        <div id="h-score-ajustes" style="font-size:.7rem;color:#8b949e;margin-top:2px">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MÉTRICAS DE MERCADO -->
+  <div id="health-mercado-wrap" style="display:none;margin-bottom:16px">
+    <div style="font-size:.72rem;color:#8b949e;font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Contexto de Mercado</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px">
+      <div style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:12px 14px">
+        <div style="font-size:.7rem;color:#8b949e;margin-bottom:6px">😨 Fear &amp; Greed</div>
+        <div id="h-fg" style="font-size:1.4rem;font-weight:700">—</div>
+        <div id="h-fg-label" style="font-size:.68rem;color:#8b949e;margin-top:2px">—</div>
+      </div>
+      <div style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:12px 14px">
+        <div style="font-size:.7rem;color:#8b949e;margin-bottom:6px">₿ BTC Dominance</div>
+        <div id="h-btcdom" style="font-size:1.4rem;font-weight:700">—</div>
+        <div id="h-btcdom-label" style="font-size:.68rem;color:#8b949e;margin-top:2px">—</div>
+      </div>
+      <div style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:12px 14px">
+        <div style="font-size:.7rem;color:#8b949e;margin-bottom:6px">📊 BTC 4H EMA50</div>
+        <div id="h-btc4h" style="font-size:1.1rem;font-weight:700">—</div>
+        <div id="h-btc4h-label" style="font-size:.68rem;color:#8b949e;margin-top:2px">—</div>
+      </div>
+      <div style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:12px 14px">
+        <div style="font-size:.7rem;color:#8b949e;margin-bottom:6px">📡 Setups hoje</div>
+        <div id="h-hoje" style="font-size:1.4rem;font-weight:700">—</div>
+        <div id="h-hoje-pl" style="font-size:.68rem;color:#8b949e;margin-top:2px">—</div>
+      </div>
+      <div style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:12px 14px">
+        <div style="font-size:.7rem;color:#8b949e;margin-bottom:6px">🎯 Win Rate (últimas 10)</div>
+        <div id="h-wr10" style="font-size:1.4rem;font-weight:700">—</div>
+        <div id="h-wr-geral" style="font-size:.68rem;color:#8b949e;margin-top:2px">—</div>
+      </div>
+      <div style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:12px 14px">
+        <div style="font-size:.7rem;color:#8b949e;margin-bottom:6px">⚖️ Profit Factor</div>
+        <div id="h-pf" style="font-size:1.4rem;font-weight:700">—</div>
+        <div id="h-pf-label" style="font-size:.68rem;color:#8b949e;margin-top:2px">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CIRCUIT BREAKERS -->
+  <div id="health-cb-wrap" style="display:none;margin-bottom:16px">
+    <div style="font-size:.72rem;color:#8b949e;font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Circuit Breakers</div>
+    <div id="h-cb-content" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:12px 16px;font-size:.8rem"></div>
+  </div>
+
+  <!-- CALIBRAÇÃO -->
+  <div id="health-cal-wrap" style="display:none;margin-bottom:16px">
+    <div style="font-size:.72rem;color:#8b949e;font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Calibração Automática</div>
+    <div style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px 16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:6px">
+        <div>
+          <span id="h-cal-desde" style="font-size:.85rem;font-weight:600;color:#e6edf3">—</span>
+          <span style="font-size:.75rem;color:#8b949e"> sinais desde última calibração</span>
+        </div>
+        <div id="h-cal-prox" style="font-size:.75rem;color:#8b949e">Próximo em —</div>
+      </div>
+      <div style="background:#0d1117;border-radius:6px;height:10px;overflow:hidden">
+        <div id="h-cal-bar" style="height:100%;background:linear-gradient(90deg,#58a6ff,#3fb950);border-radius:6px;transition:width .5s ease;width:0%"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:4px">
+        <span style="font-size:.68rem;color:#555">0</span>
+        <div id="h-cal-pct" style="font-size:.68rem;color:#8b949e;text-align:center">0%</div>
+        <span style="font-size:.68rem;color:#555">50</span>
+      </div>
+      <div id="h-cal-ultima" style="font-size:.72rem;color:#8b949e;margin-top:8px">Última calibração: —</div>
+    </div>
+  </div>
+
+  <!-- AUTO-REFRESH INFO -->
+  <div style="font-size:.72rem;color:#555;text-align:center;margin-top:4px" id="h-last-update">—</div>
 </div>
 
 <!-- MODAL GRÁFICO -->
@@ -1654,6 +1748,126 @@
       console.error('Erro analytics:',e);
       document.getElementById('an-empty').style.display='flex';
       document.getElementById('an-empty').innerHTML='<div class="icon">⚠️</div><p>Erro ao carregar analytics.</p>';
+    }
+  }
+
+  // ── HEALTH CHECK
+  let _healthTimer = null;
+
+  async function carregarHealth(){
+    document.getElementById('health-status').innerHTML='<span class="spinner"></span> Carregando...';
+    ['health-modo-wrap','health-mercado-wrap','health-cb-wrap','health-cal-wrap'].forEach(id=>{
+      document.getElementById(id).style.display='none';
+    });
+    try{
+      const res = await fetch('/api/health');
+      if(!res.ok) throw new Error('HTTP '+res.status);
+      const d = await res.json();
+
+      // ── Modo
+      const modoEl = document.getElementById('h-modo');
+      const modo = d.modo || 'NORMAL';
+      modoEl.textContent = modo;
+      modoEl.style.color = modo==='CONSERVADOR EXTREMO'?'#f85149':modo==='CONSERVADOR'?'#e3b341':'#3fb950';
+      document.getElementById('h-score-min').textContent = d.score_minimo_efetivo ?? '—';
+
+      // Ajustes breakdown
+      const aj = d.ajustes || {};
+      const ajParts = [];
+      if(aj.base != null) ajParts.push(`base ${aj.base}`);
+      if(aj.fg   != null && aj.fg   !== 0) ajParts.push(`F&G ${aj.fg>0?'+':''}${aj.fg}`);
+      if(aj.btc_dom != null && aj.btc_dom !== 0) ajParts.push(`Dom ${aj.btc_dom>0?'+':''}${aj.btc_dom}`);
+      if(aj.btc_4h != null && aj.btc_4h !== 0) ajParts.push(`4H ${aj.btc_4h>0?'+':''}${aj.btc_4h}`);
+      document.getElementById('h-score-ajustes').textContent = ajParts.join(' · ') || '—';
+      document.getElementById('health-modo-wrap').style.display='block';
+
+      // ── Mercado
+      const mkt = d.mercado || {};
+      const fg = mkt.fear_greed ?? null;
+      document.getElementById('h-fg').textContent = fg!=null ? fg : '—';
+      const fgLabel = fg==null?'—':fg<=25?'😱 Medo Extremo':fg<=45?'😟 Medo':fg<=55?'😐 Neutro':fg<=75?'😊 Ganância':'🤑 G. Extrema';
+      const fgEl = document.getElementById('h-fg-label');
+      fgEl.textContent = fgLabel;
+      fgEl.style.color = fg==null?'#555':fg<=25||fg>=80?'#f85149':fg<=45?'#e3b341':'#3fb950';
+
+      const dom = mkt.btc_dominance ?? null;
+      document.getElementById('h-btcdom').textContent = dom!=null ? dom+'%' : '—';
+      const domEl = document.getElementById('h-btcdom-label');
+      domEl.textContent = dom==null?'—':dom>60?'₿ BTC dominando':dom<45?'🌟 Altseason':'⚖️ Equilíbrio';
+      domEl.style.color = dom==null?'#555':dom>55?'#f0883e':dom<45?'#3fb950':'#8b949e';
+
+      const btc4h = mkt.btc_4h ?? null;
+      const btc4hEl = document.getElementById('h-btc4h');
+      const btc4hLabel = document.getElementById('h-btc4h-label');
+      if(btc4h === 'acima_ema50'){
+        btc4hEl.textContent='📈 Acima'; btc4hEl.style.color='#3fb950';
+        btc4hLabel.textContent='Macro favorável';
+      } else if(btc4h === 'abaixo_ema50'){
+        btc4hEl.textContent='📉 Abaixo'; btc4hEl.style.color='#f85149';
+        btc4hLabel.textContent='Macro negativa';
+      } else {
+        btc4hEl.textContent='—'; btc4hEl.style.color='#555';
+        btc4hLabel.textContent='Sem dados';
+      }
+
+      const hoje = d.hoje || {};
+      document.getElementById('h-hoje').textContent = hoje.sinais ?? '—';
+      const pl = hoje.pl_hoje;
+      const plEl = document.getElementById('h-hoje-pl');
+      plEl.textContent = pl!=null ? (pl>=0?'+':'')+'$'+pl.toFixed(2)+' hoje' : 'P&L: sem dados';
+      plEl.style.color = pl==null?'#555':pl>=0?'#3fb950':'#f85149';
+
+      const perf = d.performance || {};
+      const wr10 = perf.win_rate_10 ?? null;
+      const wrGeral = perf.win_rate_geral ?? null;
+      const wr10El = document.getElementById('h-wr10');
+      wr10El.textContent = wr10!=null ? wr10+'%' : '—';
+      wr10El.style.color = wr10==null?'#555':wr10>=55?'#3fb950':wr10>=40?'#e3b341':'#f85149';
+      document.getElementById('h-wr-geral').textContent = wrGeral!=null ? `Geral: ${wrGeral}% (${perf.total_fechados} ops)` : 'Sem dados ainda';
+
+      const pf = perf.profit_factor ?? null;
+      const pfEl = document.getElementById('h-pf');
+      pfEl.textContent = pf!=null ? pf : '—';
+      pfEl.style.color = pf==null?'#555':pf>=1.5?'#3fb950':pf>=1.0?'#e3b341':'#f85149';
+      document.getElementById('h-pf-label').textContent = pf==null?'Sem dados':pf>=1.5?'Excelente':pf>=1.0?'Positivo':'Abaixo de 1 — atenção';
+      document.getElementById('health-mercado-wrap').style.display='block';
+
+      // ── Circuit Breakers
+      const cb = d.circuit_breakers || {};
+      const cbParts = [];
+      if(cb.portfolio_ativo) cbParts.push(`<span style="color:#f85149;font-weight:700">🛑 Portfólio bloqueado (P&L < -5%)</span>`);
+      else cbParts.push(`<span style="color:#3fb950">✅ Portfólio OK</span>`);
+      if(cb.sequencial_ativo) cbParts.push(`<span style="color:#f85149;font-weight:700"> · 🔴 ${cb.losses_sequenciais} losses seguidos — pausado</span>`);
+      document.getElementById('h-cb-content').innerHTML = cbParts.join('');
+      document.getElementById('health-cb-wrap').style.display='block';
+
+      // ── Calibração
+      const cal = d.calibracao || {};
+      const desde = cal.sinais_desde_calibracao ?? 0;
+      const trigger = cal.proximo_trigger_em ?? 50;
+      const pct = Math.min(100, Math.round(desde / trigger * 100));
+      document.getElementById('h-cal-desde').textContent = desde;
+      document.getElementById('h-cal-prox').textContent = `Próximo em ${trigger - desde} sinais`;
+      document.getElementById('h-cal-bar').style.width = pct+'%';
+      document.getElementById('h-cal-pct').textContent = pct+'%';
+      document.getElementById('h-cal-ultima').textContent = cal.ultima_calibracao
+        ? 'Última: '+new Date(cal.ultima_calibracao+'Z').toLocaleString('pt-BR')
+        : 'Nenhuma calibração ainda';
+      document.getElementById('health-cal-wrap').style.display='block';
+
+      document.getElementById('health-status').textContent='';
+      document.getElementById('h-last-update').textContent='Atualizado: '+new Date().toLocaleTimeString('pt-BR')+' · auto-atualiza em 60s';
+
+      // Auto-refresh a cada 60s enquanto aba estiver ativa
+      clearTimeout(_healthTimer);
+      _healthTimer = setTimeout(()=>{
+        const abaHealth = document.getElementById('aba-health');
+        if(abaHealth && abaHealth.classList.contains('active')) carregarHealth();
+      }, 60000);
+
+    }catch(e){
+      document.getElementById('health-status').textContent='❌ Erro ao carregar painel de saúde.';
+      console.error('Health check error:',e);
     }
   }
 
