@@ -814,6 +814,40 @@
   let oportsAnt=new Set();
   let taxaBRL=null;
 
+  // ── CACHE LOCAL ──────────────────────────────────────────────────────────
+  const CACHE_MAX_AGE = 10 * 60 * 1000; // 10 minutos
+
+  function _salvarCache(resultados, contexto) {
+    try {
+      const interval = document.getElementById('interval-select').value;
+      localStorage.setItem('sc_cache_' + interval, JSON.stringify({
+        ts: Date.now(), resultados, contexto
+      }));
+    } catch(e) {}
+  }
+
+  function _lerCache() {
+    try {
+      const interval = document.getElementById('interval-select').value;
+      const raw = localStorage.getItem('sc_cache_' + interval);
+      if (!raw) return null;
+      const c = JSON.parse(raw);
+      if (Date.now() - c.ts > CACHE_MAX_AGE) return null;
+      return c;
+    } catch(e) { return null; }
+  }
+
+  function _idadeCache() {
+    try {
+      const interval = document.getElementById('interval-select').value;
+      const raw = localStorage.getItem('sc_cache_' + interval);
+      if (!raw) return null;
+      const c = JSON.parse(raw);
+      const min = Math.round((Date.now() - c.ts) / 60000);
+      return min < 1 ? 'agora mesmo' : `${min}min atrás`;
+    } catch(e) { return null; }
+  }
+
   async function carregarTaxaBRL(){
     try{
       const res=await fetch('/api/taxa-brl');
@@ -882,14 +916,29 @@
     const interval=document.getElementById('interval-select').value;
     btn.disabled=true;btn.textContent='⏳ Analisando...';
     if(fab){fab.disabled=true;fab.innerHTML='<span class="bnav-icon">⏳</span>Analisando';}
-    document.getElementById('status-text').innerHTML='<span class="spinner"></span> Buscando dados + Funding Rates...';
-    // Mostrar skeleton, ocultar conteúdo real
-    document.getElementById('skeleton-area').style.display='block';
-    document.getElementById('empty-state').style.display='none';
-    document.getElementById('results-table').style.display='none';
-    document.getElementById('summary-cards').style.display='none';
-    document.getElementById('filter-row').style.display='none';
-    document.getElementById('mobile-cards').innerHTML='';
+
+    // ── Mostrar cache imediatamente se disponível
+    const cache = _lerCache();
+    if(cache && cache.resultados && cache.resultados.length){
+      allData = cache.resultados;
+      renderTabela();
+      atualizarSummary();
+      atualizarContextoMercado(cache.contexto);
+      document.getElementById('skeleton-area').style.display='none';
+      document.getElementById('empty-state').style.display='none';
+      document.getElementById('status-text').innerHTML=
+        `<span class="spinner"></span> Atualizando... &nbsp;<span style="color:#4a5568;font-size:.7rem">📋 dados de ${_idadeCache()}</span>`;
+    } else {
+      // Sem cache: mostra skeleton normalmente
+      document.getElementById('skeleton-area').style.display='block';
+      document.getElementById('empty-state').style.display='none';
+      document.getElementById('results-table').style.display='none';
+      document.getElementById('summary-cards').style.display='none';
+      document.getElementById('filter-row').style.display='none';
+      document.getElementById('mobile-cards').innerHTML='';
+      document.getElementById('status-text').innerHTML='<span class="spinner"></span> Buscando dados...';
+    }
+
     try{
       const controller=new AbortController();
       const tid=setTimeout(()=>controller.abort(),150000); // abort após 150s
@@ -903,6 +952,7 @@
       renderTabela();
       atualizarSummary();
       atualizarContextoMercado(data.contexto_mercado);
+      _salvarCache(allData, data.contexto_mercado);
       document.getElementById('last-update').textContent='Atualizado: '+new Date().toLocaleTimeString('pt-BR');
       const tg=data.alertas_telegram||[];
       const setup=allData.filter(d=>d.setup_completo).length;
