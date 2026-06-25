@@ -1307,7 +1307,7 @@ def rodar_screener(interval: str = "1h", top_n: int = 100) -> list:
         except Exception:
             return None
 
-    with ThreadPoolExecutor(max_workers=10) as ex:
+    with ThreadPoolExecutor(max_workers=25) as ex:
         futures = {ex.submit(_analisar, s): s for s in pares}
         for f in as_completed(futures):
             r = f.result()

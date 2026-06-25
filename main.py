@@ -2,6 +2,7 @@ import asyncio
 import json
 import os
 import secrets
+from datetime import datetime
 from pathlib import Path
 from fastapi import FastAPI, Query, Request, Response
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
@@ -45,6 +46,12 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 _CONFIG_PATH = Path(__file__).parent / "screener_config.json"
 _CALIBRACAO_TRIGGER = 50
+
+# ─── CACHE DE SCAN (30s TTL) ────────────────────────────────────────────────
+_scan_cache: dict = {}     # interval → resultados
+_scan_cache_ts: dict = {}  # interval → datetime
+_scan_cache_ctx: dict = {} # interval → contexto_mercado
+_SCAN_CACHE_TTL = 30       # segundos
 
 
 def _ler_config_json():
@@ -171,6 +178,21 @@ def scan(
     except Exception:
         pass
 
+    # ── Cache de 30s: retorna resultado anterior se ainda fresco
+    agora_scan = datetime.now()
+    cache_ts = _scan_cache_ts.get(interval)
+    if cache_ts and (agora_scan - cache_ts).total_seconds() < _SCAN_CACHE_TTL and interval in _scan_cache:
+        return {
+            "interval": interval,
+            "total": len(_scan_cache[interval]),
+            "resultados": _scan_cache[interval],
+            "alertas_telegram": [],
+            "sinais_registrados": 0,
+            "calibracao_rodou": False,
+            "from_cache": True,
+            "contexto_mercado": _scan_cache_ctx.get(interval, {}),
+        }
+
     try:
         resultados = rodar_screener(interval=interval, top_n=top_n)
     except Exception as e:
@@ -201,6 +223,18 @@ def scan(
         except Exception:
             pass
 
+    ctx = {
+        "fear_greed":    get_fear_greed(),
+        "btc_dominance": get_btc_dominance(),
+        "btc_4h":        get_btc_4h_tendencia(),
+        "score_minimo_efetivo": _calcular_score_minimo(),
+    }
+
+    # Salvar no cache
+    _scan_cache[interval] = resultados
+    _scan_cache_ts[interval] = agora_scan
+    _scan_cache_ctx[interval] = ctx
+
     return {
         "interval": interval,
         "total": len(resultados),
@@ -208,12 +242,7 @@ def scan(
         "alertas_telegram": alertas,
         "sinais_registrados": novos_sinais,
         "calibracao_rodou": calibracao_rodou,
-        "contexto_mercado": {
-            "fear_greed":    get_fear_greed(),
-            "btc_dominance": get_btc_dominance(),
-            "btc_4h":        get_btc_4h_tendencia(),
-            "score_minimo_efetivo": _calcular_score_minimo(),
-        },
+        "contexto_mercado": ctx,
     }
 
 
