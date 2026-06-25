@@ -319,55 +319,6 @@ def get_btc_performance(interval: str = "1h") -> dict | None:
         return None
 
 
-# ─────────────────────────── CVD ───────────────────────────
-
-def get_cvd(symbol: str, limit: int = 200) -> tuple:
-    """
-    v3.1 — CVD desabilitado (era a causa do scan lento: 50 chamadas extras via /trades).
-    Para reativar: remova o 'return None, None' e descomente o bloco abaixo.
-    """
-    return None, None
-    # ── Código desabilitado ──
-    # try:
-    #     r = _get(f"{BINANCE_BASE}/trades", params={"symbol": symbol, "limit": limit}, timeout=8)
-    #     r.raise_for_status()
-    #     trades = r.json()
-    #     buy_vol  = sum(float(t["qty"]) for t in trades if not t["isBuyerMaker"])
-    #     sell_vol = sum(float(t["qty"]) for t in trades if t["isBuyerMaker"])
-    #     total    = buy_vol + sell_vol
-    #     if total == 0: return None, None
-    #     cvd = round((buy_vol - sell_vol) / total * 100, 1)
-    #     return cvd, ("bullish" if cvd > 15 else "bearish" if cvd < -15 else "neutro")
-    # except Exception:
-    #     return None, None
-
-
-# ─────────────────────────── OPEN INTEREST ───────────────────────────
-
-def get_open_interest_change(symbol: str) -> tuple:
-    """
-    v3.1 — OI desabilitado (FAPI menos estável que spot API).
-    Para reativar: remova o 'return None, None' e descomente o bloco abaixo.
-    """
-    return None, None
-    # ── Código desabilitado ──
-    # global _oi_cache
-    # agora = datetime.now()
-    # try:
-    #     r = _get(f"{BINANCE_FAPI}/openInterest", params={"symbol": symbol}, timeout=2)
-    #     r.raise_for_status()
-    #     oi_atual = float(r.json()["openInterest"])
-    # except Exception:
-    #     return None, None
-    # prev = _oi_cache.get(symbol)
-    # _oi_cache[symbol] = (agora, oi_atual)
-    # if not prev: return oi_atual, None
-    # prev_time, prev_oi = prev
-    # diff_min = (agora - prev_time).total_seconds() / 60
-    # if 1 <= diff_min <= 120 and prev_oi > 0:
-    #     return oi_atual, round((oi_atual - prev_oi) / prev_oi * 100, 3)
-    # return oi_atual, None
-
 
 # ─────────────────────────── FORÇA RELATIVA ───────────────────────────
 

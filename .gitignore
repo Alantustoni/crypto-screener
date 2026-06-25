@@ -25,3 +25,17 @@ nohup.out
 # Config local da automação noturna (contém chaves, não vai pro git)
 auto_config.json
 nightly_log.json
+
+# SEGURANÇA — bot token e dados sensíveis
+telegram_config.json
+
+# Arquivos de runtime e calibração gerados pelo servidor
+calibracao_resultado.json
+
+# Scripts locais Windows (inúteis no Railway/Linux)
+_restart.bat
+*.bat
+
+# Pastas antigas abandonadas
+Cripto_scaner/
+Scaner_Cripto/
