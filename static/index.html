@@ -30,6 +30,21 @@
     .spinner{display:inline-block;width:11px;height:11px;border:2px solid #f0883e;border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite;margin-right:5px;vertical-align:middle}
     @keyframes spin{to{transform:rotate(360deg)}}
 
+    /* ── SKELETON LOADING ── */
+    @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+    .skeleton{background:linear-gradient(90deg,#161b22 25%,#21262d 50%,#161b22 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:6px}
+    .skeleton-cards{display:flex;gap:10px;padding:14px 24px;flex-wrap:wrap}
+    .skeleton-card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:12px 16px;min-width:120px;flex:1}
+    .skeleton-card .sk-label{height:10px;width:60%;margin-bottom:8px}
+    .skeleton-card .sk-value{height:28px;width:40%;margin-bottom:6px}
+    .skeleton-card .sk-sub{height:8px;width:70%}
+    .skeleton-table{padding:0 24px}
+    .skeleton-row{display:flex;gap:12px;padding:11px 10px;border-bottom:1px solid #21262d;align-items:center}
+    .skeleton-row .sk-sym{height:14px;width:80px}
+    .skeleton-row .sk-price{height:14px;width:70px;margin-left:auto}
+    .skeleton-row .sk-var{height:14px;width:60px}
+    .skeleton-row .sk-badge{height:20px;width:90px;border-radius:12px}
+
 
     .summary-cards{display:flex;gap:10px;padding:14px 24px;flex-wrap:wrap}
     .card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:12px 16px;min-width:120px;flex:1;transition:border-color .2s}
@@ -111,8 +126,7 @@
     .btc-banner.visivel{display:flex}
 
     /* Market Context Bar */
-    .mkt-bar{display:none;margin:8px 24px 0;background:#161b22;border:1px solid #30363d;border-radius:8px;padding:10px 20px;gap:20px;flex-wrap:wrap;align-items:center;font-size:.78rem}
-    .mkt-bar.visivel{display:flex}
+    .mkt-bar{display:flex;margin:8px 24px 0;background:#161b22;border:1px solid #30363d;border-radius:8px;padding:10px 20px;gap:20px;flex-wrap:wrap;align-items:center;font-size:.78rem}
     .mkt-item{display:flex;align-items:center;gap:6px;color:#8b949e}
     .mkt-item strong{color:#e6edf3}
     .fg-medo-extremo{color:#3fb950;font-weight:700}
@@ -156,7 +170,7 @@
     input:checked+.toggle-slider:before{transform:translateX(20px);background:#fff}
 
     #auto-label{font-size:.78rem;color:#8b949e}
-    #countdown{color:#f0883e;font-weight:700}
+    #countdown{color:#ff9a5c;font-weight:700}
     .empty-state{text-align:center;padding:50px;color:#8b949e}
     .empty-state .icon{font-size:2.5rem;margin-bottom:10px}
 
@@ -332,6 +346,27 @@
     <button class="filter-btn" onclick="setFiltro('altas',this)">📈 Maiores Altas</button>
     <button class="filter-btn" onclick="setFiltro('quase',this)">⚡ Quase Setup</button>
     <button class="filter-btn" onclick="setFiltro('rotation',this)">🔄 Top 10</button>
+  </div>
+
+  <!-- Skeleton loading — visível durante o scan -->
+  <div id="skeleton-area" style="display:none">
+    <div class="skeleton-cards">
+      <div class="skeleton-card"><div class="sk-label skeleton"></div><div class="sk-value skeleton"></div><div class="sk-sub skeleton"></div></div>
+      <div class="skeleton-card"><div class="sk-label skeleton"></div><div class="sk-value skeleton"></div><div class="sk-sub skeleton"></div></div>
+      <div class="skeleton-card"><div class="sk-label skeleton"></div><div class="sk-value skeleton"></div><div class="sk-sub skeleton"></div></div>
+      <div class="skeleton-card"><div class="sk-label skeleton"></div><div class="sk-value skeleton"></div><div class="sk-sub skeleton"></div></div>
+      <div class="skeleton-card"><div class="sk-label skeleton"></div><div class="sk-value skeleton"></div><div class="sk-sub skeleton"></div></div>
+    </div>
+    <div class="skeleton-table">
+      <div class="skeleton-row"><div class="sk-sym skeleton"></div><div class="sk-badge skeleton"></div><div class="sk-price skeleton"></div><div class="sk-var skeleton"></div></div>
+      <div class="skeleton-row"><div class="sk-sym skeleton"></div><div class="sk-badge skeleton"></div><div class="sk-price skeleton"></div><div class="sk-var skeleton"></div></div>
+      <div class="skeleton-row"><div class="sk-sym skeleton"></div><div class="sk-badge skeleton"></div><div class="sk-price skeleton"></div><div class="sk-var skeleton"></div></div>
+      <div class="skeleton-row"><div class="sk-sym skeleton"></div><div class="sk-badge skeleton"></div><div class="sk-price skeleton"></div><div class="sk-var skeleton"></div></div>
+      <div class="skeleton-row"><div class="sk-sym skeleton"></div><div class="sk-badge skeleton"></div><div class="sk-price skeleton"></div><div class="sk-var skeleton"></div></div>
+      <div class="skeleton-row"><div class="sk-sym skeleton"></div><div class="sk-badge skeleton"></div><div class="sk-price skeleton"></div><div class="sk-var skeleton"></div></div>
+      <div class="skeleton-row"><div class="sk-sym skeleton"></div><div class="sk-badge skeleton"></div><div class="sk-price skeleton"></div><div class="sk-var skeleton"></div></div>
+      <div class="skeleton-row"><div class="sk-sym skeleton"></div><div class="sk-badge skeleton"></div><div class="sk-price skeleton"></div><div class="sk-var skeleton"></div></div>
+    </div>
   </div>
 
   <div class="table-wrapper">
@@ -820,6 +855,13 @@
     btn.disabled=true;btn.textContent='⏳ Analisando...';
     fab.disabled=true;fab.textContent='⏳ Analisando...';
     document.getElementById('status-text').innerHTML='<span class="spinner"></span> Buscando dados + Funding Rates...';
+    // Mostrar skeleton, ocultar conteúdo real
+    document.getElementById('skeleton-area').style.display='block';
+    document.getElementById('empty-state').style.display='none';
+    document.getElementById('results-table').style.display='none';
+    document.getElementById('summary-cards').style.display='none';
+    document.getElementById('filter-row').style.display='none';
+    document.getElementById('mobile-cards').innerHTML='';
     try{
       const controller=new AbortController();
       const tid=setTimeout(()=>controller.abort(),150000); // abort após 150s
@@ -828,6 +870,8 @@
       const data=await res.json();
       allData=data.resultados||[];
       checarSom(allData);
+      // Ocultar skeleton, mostrar conteúdo real
+      document.getElementById('skeleton-area').style.display='none';
       renderTabela();
       atualizarSummary();
       atualizarContextoMercado(data.contexto_mercado);
@@ -836,6 +880,8 @@
       document.getElementById('status-text').textContent=`✅ ${allData.length} moedas analisadas.`+(tg.length>0?` 📱 Telegram: ${tg.join(', ')}`:'');
       resetCountdown();
     }catch(e){
+      document.getElementById('skeleton-area').style.display='none';
+      document.getElementById('empty-state').style.display='block';
       document.getElementById('status-text').textContent='❌ Erro ao buscar dados.';
     }
     btn.disabled=false;btn.textContent='⚡ Analisar agora';
