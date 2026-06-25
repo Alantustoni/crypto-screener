@@ -125,15 +125,19 @@
     .btc-banner{display:none;margin:6px 24px 0;background:#1e0d0d;border:1px solid #3a1515;border-radius:8px;padding:9px 16px;font-size:.8rem;color:#f85149;align-items:center;gap:8px}
     .btc-banner.visivel{display:flex}
 
-    /* Market Context Bar */
-    .mkt-bar{display:flex;margin:8px 24px 0;background:#161b22;border:1px solid #30363d;border-radius:8px;padding:10px 20px;gap:20px;flex-wrap:wrap;align-items:center;font-size:.78rem}
-    .mkt-item{display:flex;align-items:center;gap:6px;color:#8b949e}
-    .mkt-item strong{color:#e6edf3}
-    .fg-medo-extremo{color:#3fb950;font-weight:700}
-    .fg-medo{color:#79c0ff;font-weight:700}
-    .fg-neutro{color:#8b949e;font-weight:700}
-    .fg-ganancia{color:#f0883e;font-weight:700}
-    .fg-ganancia-extrema{color:#f85149;font-weight:700}
+    /* Market Context Bar — pill style */
+    .mkt-bar{display:flex;padding:0 20px;height:40px;gap:7px;align-items:center;background:#161b22;border-bottom:1px solid #21262d;overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
+    .mkt-bar::-webkit-scrollbar{display:none}
+    .mkt-pill{display:flex;align-items:center;gap:5px;background:#0d1117;border:1px solid #21262d;border-radius:20px;padding:3px 11px;font-size:.72rem;white-space:nowrap;flex-shrink:0}
+    .mkt-pill .pl{color:#8b949e}
+    .mkt-pill .pv{color:#e6edf3;font-weight:700}
+    .mkt-pill .pv.warn{color:#f0883e}
+    .mkt-pill .pv.bad{color:#f85149}
+    .mkt-pill .pv.ok{color:#3fb950}
+    .mode-badge{margin-left:auto;flex-shrink:0;padding:3px 12px;border-radius:20px;font-size:.7rem;font-weight:700;white-space:nowrap;background:#f0883e0d;border:1px solid #f0883e33;color:#f0883e}
+    .mode-badge.safe{background:#3fb9500d;border-color:#3fb95033;color:#3fb950}
+    .mode-badge.danger{background:#f8514908;border-color:#f8514933;color:#f85149}
+    .fg-medo-extremo,.fg-medo,.fg-neutro,.fg-ganancia,.fg-ganancia-extrema{display:none}
     .cascade-tag{font-size:.58rem;background:#d2a8ff18;color:#d2a8ff;border:1px solid #d2a8ff33;border-radius:3px;padding:0 4px;margin-left:3px}
 
     /* MODAL */
@@ -171,8 +175,12 @@
 
     #auto-label{font-size:.78rem;color:#8b949e}
     #countdown{color:#ff9a5c;font-weight:700}
-    .empty-state{text-align:center;padding:50px;color:#8b949e}
-    .empty-state .icon{font-size:2.5rem;margin-bottom:10px}
+    .empty-state{text-align:center;padding:44px 30px;color:#8b949e;display:flex;flex-direction:column;align-items:center;gap:6px}
+    .empty-state .icon{font-size:2.5rem;margin-bottom:4px}
+    .empty-state .e-title{font-size:.88rem;font-weight:600;color:#8b949e}
+    .empty-state .e-sub{font-size:.78rem;color:#6e7681;line-height:1.6;max-width:300px}
+    .scan-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#3fb950;vertical-align:middle;margin-right:5px;box-shadow:0 0 5px #3fb950;animation:pulse 2s infinite}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
 
     /* HISTÓRICO */
     .hist-stats{display:flex;gap:10px;padding:16px 24px;flex-wrap:wrap}
@@ -207,9 +215,10 @@
     .tabs{padding:0 10px;overflow-x:auto;-webkit-overflow-scrolling:touch;gap:0}
     .tab{padding:10px 16px;font-size:.82rem;white-space:nowrap;flex-shrink:0}
 
-    /* Market bar — empilha verticalmente */
-    .mkt-bar{margin:8px 12px 0;padding:10px 14px;gap:10px;flex-wrap:wrap;font-size:.75rem}
-    #mkt-contexto{font-size:.70rem;text-align:left}
+    /* Market bar mobile — scroll horizontal */
+    .mkt-bar{padding:0 12px;height:38px}
+    .mkt-pill{font-size:.68rem;padding:2px 9px}
+    .mode-badge{font-size:.65rem;padding:2px 9px}
 
     /* BTC banner */
     .btc-banner{margin:8px 12px 0;font-size:.76rem;padding:8px 12px}
@@ -314,11 +323,23 @@
 <div class="tab-content active" id="aba-screener">
 
 
-  <!-- Market Context Bar -->
+  <!-- Market Context Bar — pill style -->
   <div class="mkt-bar" id="mkt-bar">
-    <div class="mkt-item">😱 Sentimento do mercado: <strong><span id="fg-value">—</span>/100</strong> &nbsp;— <span id="fg-label" class="fg-neutro">—</span></div>
-    <div class="mkt-item" title="Dominância do Bitcoin. >60%: BTC dominando. <45%: Altseason.">₿ Bitcoin domina <strong><span id="btc-dom">—</span>% do mercado</strong></div>
-    <div id="mkt-contexto" style="font-size:.75rem;color:#8b949e;flex:1;text-align:right"></div>
+    <div class="mkt-pill" title="Fear & Greed Index">
+      <span class="pl">😱 F&amp;G</span>
+      <span class="pv" id="fg-value">—</span>
+    </div>
+    <div class="mkt-pill" title="Dominância do Bitcoin. >60%: BTC dominando. <45%: Altseason.">
+      <span class="pl">₿ Dom</span>
+      <span class="pv" id="btc-dom">—</span><span class="pl">%</span>
+    </div>
+    <div class="mkt-pill" id="btc-change-pill" style="display:none">
+      <span class="pl">BTC</span>
+      <span class="pv" id="btc-change-val">—</span>
+    </div>
+    <span id="fg-label" class="fg-neutro" style="display:none"></span>
+    <div id="mkt-contexto" style="display:none"></div>
+    <div id="mkt-mode-badge" class="mode-badge" style="display:none">—</div>
   </div>
 
   <div class="btc-banner" id="btc-banner">
@@ -371,8 +392,9 @@
 
   <div class="table-wrapper">
     <div class="empty-state" id="empty-state">
-      <div class="icon">🔍</div>
-      <p>Clique em <strong>Analisar agora</strong> para ver as oportunidades.</p>
+      <div class="icon">📊</div>
+      <div class="e-title">Clique em ⚡ Analisar agora</div>
+      <div class="e-sub">O sistema vai verificar 92 moedas e mostrar os melhores setups disponíveis.</div>
     </div>
     <table id="results-table" style="display:none">
       <thead>
@@ -877,7 +899,13 @@
       atualizarContextoMercado(data.contexto_mercado);
       document.getElementById('last-update').textContent='Atualizado: '+new Date().toLocaleTimeString('pt-BR');
       const tg=data.alertas_telegram||[];
-      document.getElementById('status-text').textContent=`✅ ${allData.length} moedas analisadas.`+(tg.length>0?` 📱 Telegram: ${tg.join(', ')}`:'');
+      const setup=allData.filter(d=>d.setup_completo).length;
+      const quase=allData.filter(d=>d.quase_setup).length;
+      let resumo=`<span class="scan-dot"></span> ${allData.length} moedas analisadas`;
+      if(setup>0) resumo+=` · <span style="color:#3fb950;font-weight:700">🔥 ${setup} setup${setup>1?'s':''}</span>`;
+      if(quase>0) resumo+=` · <span style="color:#f0883e">⚡ ${quase} quase-setup${quase>1?'s':''}</span>`;
+      if(tg.length>0) resumo+=` · 📱 Telegram: ${tg.join(', ')}`;
+      document.getElementById('status-text').innerHTML=resumo;
       resetCountdown();
     }catch(e){
       document.getElementById('skeleton-area').style.display='none';
@@ -891,34 +919,44 @@
 
   function atualizarContextoMercado(ctx){
     if(!ctx) return;
-    const bar=document.getElementById('mkt-bar');
-    bar.classList.add('visivel');
     const fg=ctx.fear_greed||{};
-    const traduzirFG = v => {
-      if(v<=25)  return '😱 Medo Extremo — boa hora para comprar (contrário)';
-      if(v<=45)  return '😟 Medo — mercado pessimista';
-      if(v<=55)  return '😐 Neutro';
-      if(v<=75)  return '😊 Ganância — mercado otimista';
-      return       '🤑 Ganância Extrema — cuidado, pode estar no topo';
-    };
-    if(fg.value!=null){
-      document.getElementById('fg-value').textContent=fg.value;
-      const lbl=document.getElementById('fg-label');
-      lbl.textContent=traduzirFG(fg.value);
-      if(fg.value<=25){lbl.className='fg-medo-extremo';}
-      else if(fg.value<=45){lbl.className='fg-medo';}
-      else if(fg.value<=55){lbl.className='fg-neutro';}
-      else if(fg.value<=75){lbl.className='fg-ganancia';}
-      else{lbl.className='fg-ganancia-extrema';}
-    }
-    if(ctx.btc_dominance!=null){
-      document.getElementById('btc-dom').textContent=ctx.btc_dominance;
-    }
-    let dica='';
     const dom=ctx.btc_dominance;
-    if(dom!=null&&dom<45) dica='🌟 Altcoins em alta — boa hora para diversificar';
-    else if(dom!=null&&dom>60) dica='₿ Bitcoin dominando — altcoins mais fracas agora';
-    document.getElementById('mkt-contexto').textContent=dica;
+
+    // F&G pill
+    if(fg.value!=null){
+      const el=document.getElementById('fg-value');
+      el.textContent=fg.value;
+      el.className='pv '+(fg.value<=25?'ok':fg.value<=45?'':'warn');
+      if(fg.value>=70) el.className='pv bad';
+    }
+
+    // BTC Dom pill
+    if(dom!=null){
+      const el=document.getElementById('btc-dom');
+      el.textContent=dom;
+      el.className='pv '+(dom>60?'bad':dom<45?'ok':'warn');
+    }
+
+    // Mode badge — calcula a partir dos dados disponíveis
+    const badge=document.getElementById('mkt-mode-badge');
+    badge.style.display='flex';
+    const fgv=fg.value;
+    let modoTxt='', modoCls='';
+    if(fgv!=null&&dom!=null){
+      if(fgv<=25&&dom>=55){modoTxt='🛡️ Conservador Extremo';modoCls='danger';}
+      else if(fgv<=35||dom>=57){modoTxt='⚠️ Conservador';modoCls='';}
+      else if(fgv>=55&&dom<=52){modoTxt='🚀 Agressivo';modoCls='safe';}
+      else{modoTxt='📊 Normal';modoCls='safe';}
+    }
+    if(ctx.modo_atual){
+      const m=ctx.modo_atual;
+      if(m.includes('extremo')||m.includes('Extremo')){modoTxt='🛡️ Conservador Extremo';modoCls='danger';}
+      else if(m.includes('conservador')||m.includes('Conservador')){modoTxt='⚠️ Conservador';modoCls='';}
+      else if(m.includes('agressivo')||m.includes('Agressivo')){modoTxt='🚀 Agressivo';modoCls='safe';}
+      else{modoTxt='📊 '+m;modoCls='safe';}
+    }
+    if(modoTxt){badge.textContent=modoTxt;badge.className='mode-badge '+modoCls;}
+    else{badge.style.display='none';}
   }
 
   function atualizarSummary(){
@@ -1946,62 +1984,4 @@
     document.head.appendChild(style);
 
     const el = document.createElement("div");
-    el.id = "tela-overlay";
-    el.style.cssText = [
-      "position:fixed","inset:0","z-index:9999",
-      "background:rgba(0,6,18,0.97)",
-      "display:flex","flex-direction:column",
-      "align-items:center","justify-content:center",
-      "cursor:pointer","animation:telaEntrada .4s ease"
-    ].join(";");
-    el.innerHTML = `
-      <div id="tela-texto" style="
-        color:#e6edf3;
-        font-size:clamp(2.5rem,8vw,7rem);
-        font-weight:900;
-        letter-spacing:.05em;
-        text-align:center;
-        padding:2rem;
-        animation:telaPulso 3s ease-in-out infinite;
-        max-width:90vw;
-        word-break:break-word;
-      ">${texto}</div>
-      <div style="color:#30363d;font-size:.75rem;margin-top:3rem">clique para fechar</div>
-    `;
-    el.addEventListener("click", ()=>{ fecharTela(); _limparTelaServidor(); });
-    document.body.appendChild(el);
-
-    // Auto-fecha em 5 segundos
-    setTimeout(()=>{ fecharTela(); _limparTelaServidor(); }, 5000);
-  }
-
-  function fecharTela(){
-    const el = document.getElementById("tela-overlay");
-    if(el) el.remove();
-    const st = document.getElementById("tela-style");
-    if(st) st.remove();
-  }
-
-  async function _limparTelaServidor(){
-    try{
-      await fetch('/api/tela/clear',{method:'POST',credentials:'include'});
-      _telaUltimoTs = null;
-    }catch(e){}
-  }
-
-  // ── Auth check ───────────────────────────────────────────────────────────
-  (async function checkAuth(){
-    try {
-      const r = await fetch('/api/auth/check', {credentials:'include'});
-      if(r.status === 401) window.location.href = '/login';
-    } catch(e) { /* offline / network error – não redireciona */ }
-  })();
-
-  async function logout(){
-    await fetch('/api/auth/logout', {method:'POST', credentials:'include'});
-    window.location.href = '/login';
-  }
-</script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
-</body>
-</html>
+    el.
