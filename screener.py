@@ -320,6 +320,14 @@ def get_btc_performance(interval: str = "1h") -> dict | None:
 
 
 
+# ─── CVD e OI desabilitados (FAPI/trades bloqueados) — stubs para manter compatibilidade
+def get_cvd(symbol: str, limit: int = 200) -> tuple:
+    return None, None
+
+def get_open_interest_change(symbol: str) -> tuple:
+    return None, None
+
+
 # ─────────────────────────── FORÇA RELATIVA ───────────────────────────
 
 def calcular_efficiency_ratio(closes: list, n: int = 10) -> float:
