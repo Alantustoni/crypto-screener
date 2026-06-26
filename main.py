@@ -56,16 +56,21 @@ _SCAN_CACHE_TTL = 30       # segundos
 
 def _ler_config_json():
     try:
-        return json.loads(_CONFIG_PATH.read_text(encoding="utf-8"))
+        from screener import carregar_config_screener
+        return carregar_config_screener()
     except Exception:
-        return {}
+        try:
+            return json.loads(_CONFIG_PATH.read_text(encoding="utf-8"))
+        except Exception:
+            return {}
 
 
 def _incrementar_sinais_config(n):
     try:
-        raw = _ler_config_json()
+        from screener import carregar_config_screener, salvar_config_screener
+        raw = carregar_config_screener()
         raw["sinais_desde_calibracao"] = raw.get("sinais_desde_calibracao", 0) + n
-        _CONFIG_PATH.write_text(json.dumps(raw, indent=2, ensure_ascii=False), encoding="utf-8")
+        salvar_config_screener(raw)
         return raw["sinais_desde_calibracao"]
     except Exception:
         return 0

@@ -178,6 +178,21 @@
     .acerto-no{background:#f8514918;color:#f85149;border:1px solid #f8514955}
     .acerto-pen{background:#1a1e28;color:#8b949e;border:1px solid #1e2330}
 
+    /* ── SETUP NOVO — flash highlight ── */
+    @keyframes flash-setup{
+      0%{box-shadow:0 0 18px #3fb95055,inset 0 0 18px #3fb95018;background:#142210}
+      60%{box-shadow:0 0 8px #3fb95033}
+      100%{box-shadow:none}
+    }
+    .setup-novo-flash{animation:flash-setup 2s ease-out!important}
+    .novo-badge{display:inline-block;background:#3fb950;color:#000;font-size:.55rem;font-weight:900;padding:1px 5px;border-radius:4px;margin-left:5px;vertical-align:middle;letter-spacing:.04em;animation:pulse 1.5s infinite}
+
+    /* ── MOBILE P&L CARD ── */
+    #mobile-pnl{display:none;margin:8px 14px 0;background:#111318;border:1px solid #1e2330;border-radius:12px;padding:10px 14px;gap:12px;align-items:center;flex-wrap:wrap}
+    .mpnl-item{display:flex;flex-direction:column;gap:1px;min-width:70px}
+    .mpnl-label{font-size:.6rem;color:#8b949e;text-transform:uppercase;letter-spacing:.4px}
+    .mpnl-val{font-size:.95rem;font-weight:800}
+
   /* ═══════════════════ MOBILE ═══════════════════ */
   @media (max-width: 768px) {
     body{padding-bottom:62px}
@@ -272,6 +287,7 @@
     .fab{display:none}
     .bottom-nav{display:none}
     #mobile-cards{display:none}
+    #mobile-pnl{display:none!important}
   }
   </style>
 </head>
@@ -323,6 +339,10 @@
     </div>
     <span id="fg-label" class="fg-neutro" style="display:none"></span>
     <div id="mkt-contexto" style="display:none"></div>
+    <div class="mkt-pill" id="candle-pill" title="Tempo para fechar o candle atual">
+      <span class="pl">⏱</span>
+      <span class="pv" id="candle-timer">—</span>
+    </div>
     <div id="mkt-mode-badge" class="mode-badge" style="display:none">—</div>
   </div>
 
@@ -371,6 +391,26 @@
       <div class="skeleton-row"><div class="sk-sym skeleton"></div><div class="sk-badge skeleton"></div><div class="sk-price skeleton"></div><div class="sk-var skeleton"></div></div>
       <div class="skeleton-row"><div class="sk-sym skeleton"></div><div class="sk-badge skeleton"></div><div class="sk-price skeleton"></div><div class="sk-var skeleton"></div></div>
       <div class="skeleton-row"><div class="sk-sym skeleton"></div><div class="sk-badge skeleton"></div><div class="sk-price skeleton"></div><div class="sk-var skeleton"></div></div>
+    </div>
+  </div>
+
+  <!-- Mobile P&L summary — só aparece no mobile após carregar health -->
+  <div id="mobile-pnl">
+    <div class="mpnl-item">
+      <span class="mpnl-label">P&L hoje</span>
+      <span class="mpnl-val" id="mpnl-pl">—</span>
+    </div>
+    <div class="mpnl-item">
+      <span class="mpnl-label">Ops hoje</span>
+      <span class="mpnl-val neutral" id="mpnl-ops">—</span>
+    </div>
+    <div class="mpnl-item">
+      <span class="mpnl-label">Win rate</span>
+      <span class="mpnl-val" id="mpnl-wr">—</span>
+    </div>
+    <div class="mpnl-item">
+      <span class="mpnl-label">Profit F.</span>
+      <span class="mpnl-val" id="mpnl-pf">—</span>
     </div>
   </div>
 
@@ -812,6 +852,7 @@
   let isScanning=false;
   let somAtivo=false, audioCtx=null;
   let oportsAnt=new Set();
+  let setupsAnt=new Set();   // Track setup_completo symbols from last scan
   let taxaBRL=null;
 
   // ── CACHE LOCAL ──────────────────────────────────────────────────────────
@@ -846,6 +887,59 @@
       const min = Math.round((Date.now() - c.ts) / 60000);
       return min < 1 ? 'agora mesmo' : `${min}min atrás`;
     } catch(e) { return null; }
+  }
+
+  // ── CANDLE COUNTDOWN ─────────────────────────────────────────────────────
+  function calcularTempoCandle(){
+    const iv=document.getElementById('interval-select').value;
+    const mins=iv==='15m'?15:iv==='1h'?60:iv==='4h'?240:1440;
+    const now=Date.now();
+    const totalMs=mins*60*1000;
+    const restante=totalMs-(now%totalMs);
+    const m=Math.floor(restante/60000);
+    const s=Math.floor((restante%60000)/1000);
+    return m>0?`${m}m${s.toString().padStart(2,'0')}s`:`${s}s`;
+  }
+  setInterval(()=>{
+    const el=document.getElementById('candle-timer');
+    if(el) el.textContent=calcularTempoCandle();
+  },1000);
+  // atualiza o label do pill quando intervalo muda
+  document.getElementById('interval-select').addEventListener('change',()=>{
+    const el=document.getElementById('candle-timer');
+    if(el) el.textContent=calcularTempoCandle();
+  });
+
+  // ── MOBILE P&L SUMMARY ───────────────────────────────────────────────────
+  async function carregarMobilePnl(){
+    if(window.innerWidth>768) return;
+    try{
+      const res=await fetch('/api/health');
+      if(!res.ok) return;
+      const d=await res.json();
+      const hoje=d.hoje||{};
+      const perf=d.performance||{};
+      const pl=hoje.pl_hoje;
+      const ops=hoje.sinais;
+      const wr=perf.win_rate_10;
+      const pf=perf.profit_factor;
+
+      const plEl=document.getElementById('mpnl-pl');
+      plEl.textContent=pl!=null?(pl>=0?'+':'')+'$'+Math.abs(pl).toFixed(2):'—';
+      plEl.style.color=pl==null?'#8b949e':pl>=0?'#3fb950':'#f85149';
+
+      document.getElementById('mpnl-ops').textContent=ops??'—';
+
+      const wrEl=document.getElementById('mpnl-wr');
+      wrEl.textContent=wr!=null?wr+'%':'—';
+      wrEl.style.color=wr==null?'#8b949e':wr>=55?'#3fb950':wr>=40?'#f0883e':'#f85149';
+
+      const pfEl=document.getElementById('mpnl-pf');
+      pfEl.textContent=pf!=null?pf:'—';
+      pfEl.style.color=pf==null?'#8b949e':pf>=1.5?'#3fb950':pf>=1.0?'#f0883e':'#f85149';
+
+      document.getElementById('mobile-pnl').style.display='flex';
+    }catch(e){}
   }
 
   async function carregarTaxaBRL(){
@@ -947,13 +1041,17 @@
       const data=await res.json();
       allData=data.resultados||[];
       checarSom(allData);
+      // Detectar setups novos (apareceram neste scan e não estavam no anterior)
+      const setupsNovos=new Set(allData.filter(d=>d.setup_completo&&!setupsAnt.has(d.symbol)).map(d=>d.symbol));
+      setupsAnt=new Set(allData.filter(d=>d.setup_completo).map(d=>d.symbol));
       // Ocultar skeleton, mostrar conteúdo real
       document.getElementById('skeleton-area').style.display='none';
-      renderTabela();
+      renderTabela(setupsNovos);
       atualizarSummary();
       atualizarContextoMercado(data.contexto_mercado);
       _salvarCache(allData, data.contexto_mercado);
       document.getElementById('last-update').textContent='Atualizado: '+new Date().toLocaleTimeString('pt-BR');
+      carregarMobilePnl();
       const tg=data.alertas_telegram||[];
       const setup=allData.filter(d=>d.setup_completo).length;
       const quase=allData.filter(d=>d.quase_setup).length;
@@ -1070,7 +1168,9 @@
   function formatPreco(p){return p<0.01?'$'+p.toFixed(6):p<1?'$'+p.toFixed(4):p<100?'$'+p.toFixed(2):'$'+p.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
   function formatBRL(p){const pb=p*(taxaBRL||0);if(!taxaBRL)return'';return pb<0.01?'R$'+pb.toFixed(6):pb<1?'R$'+pb.toFixed(4):pb<100?'R$'+pb.toFixed(2):'R$'+pb.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
 
-  function renderTabela(){
+  let _renderNovos=new Set();
+  function renderTabela(novos){
+    if(novos) _renderNovos=novos;
     let dados=filtrarDados();
     dados.sort((a,b)=>{
       let va=a[sortKey],vb=b[sortKey];
@@ -1107,10 +1207,12 @@
       const sCls=d.score>=5?'s5':d.score>=2?'s3':d.score>=0?'s1':'sn';
       const sinal=getSinal(d);
       const sym=d.symbol.replace('USDT','');
-      const rowCls=d.setup_completo?'setup-completo':d.quase_setup?'quase-setup':'';
+      const isNovo=_renderNovos.has(d.symbol);
+      const rowCls=(d.setup_completo?'setup-completo':d.quase_setup?'quase-setup':'')+(isNovo?' setup-novo-flash':'');
       const p=d.preco;
       const precoUSD=formatPreco(p);
       const precoBRL=formatBRL(p)||'—';
+      const novoTag=isNovo?'<span class="novo-badge">NOVO</span>':'';
       const btcTag=d.btc_risco?'<span title="BTC em queda — sinais menos confiáveis agora" style="font-size:.58rem;color:#f85149;margin-left:4px;cursor:help">⚠️ BTC caindo</span>':'';
       const rank=d.rotation_rank;
       const rankTag=rank&&rank<=10?`<span title="Top ${rank} em força relativa" style="font-size:.58rem;background:#f0883e22;color:#f0883e;border:1px solid #f0883e44;border-radius:3px;padding:0 4px;margin-left:4px;cursor:help">#${rank} força</span>`:'';
@@ -1118,7 +1220,7 @@
       const cascadeTag=(d.setor_cascade&&d.setor_cascade>=3)?`<span title="${d.setor_cascade} moedas do grupo ${traduzirSetor(d.setor)} sinalizando juntas" class="cascade-tag" style="cursor:help">🌊 ${traduzirSetor(d.setor||'')} (${d.setor_cascade})</span>`:'';
       const obTag=d.ob_imbalance!=null&&d.ob_imbalance>0.3?`<span title="Mais compradores (${(d.ob_imbalance*100).toFixed(0)}%)" style="font-size:.58rem;color:#3fb950;margin-left:4px;cursor:help">📚 comprando</span>`:d.ob_imbalance!=null&&d.ob_imbalance<-0.3?`<span title="Mais vendedores (${(Math.abs(d.ob_imbalance)*100).toFixed(0)}%)" style="font-size:.58rem;color:#f85149;margin-left:4px;cursor:help">📚 vendendo</span>`:'';
       tbody.innerHTML+=`<tr class="${rowCls}" onclick="abrirGrafico('${d.symbol}','${sym}')">
-        <td><span class="symbol">${sym}</span><span style="font-size:.65rem;color:#444"> /USDT</span>${btcTag}${rankTag}${velaTag}${cascadeTag}${obTag}</td>
+        <td><span class="symbol">${sym}</span><span style="font-size:.65rem;color:#444"> /USDT</span>${novoTag}${btcTag}${rankTag}${velaTag}${cascadeTag}${obTag}</td>
         <td><strong>${precoUSD}</strong></td>
         <td style="color:#8b949e">${precoBRL}</td>
         <td class="${vc}" style="font-weight:600">${vs}${d.variacao_24h}%</td>
@@ -1151,12 +1253,14 @@
       if(d.setor_cascade&&d.setor_cascade>=3) badges.push(`<span class="m-badge purple">🌊 ${traduzirSetor(d.setor)} (${d.setor_cascade})</span>`);
       if(d.ob_imbalance!=null&&d.ob_imbalance>0.3) badges.push('<span class="m-badge green">📚 compradores</span>');
       if(d.ob_imbalance!=null&&d.ob_imbalance<-0.3) badges.push('<span class="m-badge red">📚 vendedores</span>');
-      const cardCls=d.setup_completo?'m-card setup-completo':d.quase_setup?'m-card quase-setup':'m-card';
+      const isNovo=_renderNovos.has(d.symbol);
+      const cardCls=(d.setup_completo?'m-card setup-completo':d.quase_setup?'m-card quase-setup':'m-card')+(isNovo?' setup-novo-flash':'');
+      const novoTag=isNovo?'<span class="novo-badge">NOVO</span>':'';
       el.innerHTML+=`
         <div class="${cardCls}" onclick="abrirGrafico('${d.symbol}','${sym}')">
           <div class="m-card-inner">
             <div class="m-card-top">
-              <div><span class="m-symbol">${sym}</span><span class="m-pair">/USDT</span></div>
+              <div><span class="m-symbol">${sym}</span><span class="m-pair">/USDT</span>${novoTag}</div>
               <span class="rec ${sinal.c} m-sinal">${sinal.t}</span>
             </div>
             <div class="m-prices">
@@ -1176,7 +1280,14 @@
     });
   }
 
-  window.addEventListener('resize',()=>{if(allData.length)renderTabela();});
+  window.addEventListener('resize',()=>{
+    if(allData.length)renderTabela();
+    // Mobile P&L: hide on desktop, show on mobile if we have data
+    const pnl=document.getElementById('mobile-pnl');
+    if(pnl&&pnl.querySelector('#mpnl-pl').textContent!=='—'){
+      pnl.style.display=window.innerWidth<=768?'flex':'none';
+    }
+  });
 
   // ── GRÁFICO
   function abrirGrafico(symbol,nome){
@@ -2013,7 +2124,15 @@
     }
   }
 
-  window.onload=()=>{carregarTaxaBRL();rodarScan();iniciarPollingTela()};
+  window.onload=()=>{
+    carregarTaxaBRL();
+    rodarScan();
+    iniciarPollingTela();
+    carregarMobilePnl();
+    // Inicializa o candle timer imediatamente
+    const ct=document.getElementById('candle-timer');
+    if(ct) ct.textContent=calcularTempoCandle();
+  };
 
   // ── TELA FULLSCREEN via Telegram (/tela <mensagem>) ──────────────────────
   let _telaUltimoTs = null;

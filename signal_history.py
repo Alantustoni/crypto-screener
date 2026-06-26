@@ -96,9 +96,49 @@ def _pg_criar_tabela():
         """)
         cur.execute("CREATE INDEX IF NOT EXISTS idx_symbol    ON sinais(symbol)")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_timestamp ON sinais(timestamp)")
+        # Tabela de configuração persistente (sobrevive a redeploys)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS config (
+                chave TEXT PRIMARY KEY,
+                valor TEXT NOT NULL
+            )
+        """)
         conn.commit()
     finally:
         conn.close()
+
+
+def carregar_config_db() -> dict | None:
+    """Carrega screener_config do PostgreSQL. Retorna None se não disponível."""
+    if not _usar_postgres():
+        return None
+    try:
+        conn = _pg_conectar()
+        cur = conn.cursor()
+        cur.execute("SELECT valor FROM config WHERE chave = 'screener_config'")
+        row = cur.fetchone()
+        conn.close()
+        return json.loads(row[0]) if row else None
+    except Exception:
+        return None
+
+
+def salvar_config_db(cfg: dict) -> bool:
+    """Salva screener_config no PostgreSQL. Retorna True se ok."""
+    if not _usar_postgres():
+        return False
+    try:
+        conn = _pg_conectar()
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO config (chave, valor) VALUES ('screener_config', %s)
+            ON CONFLICT (chave) DO UPDATE SET valor = EXCLUDED.valor
+        """, (json.dumps(cfg, ensure_ascii=False),))
+        conn.commit()
+        conn.close()
+        return True
+    except Exception:
+        return False
 
 
 def _pg_carregar() -> list:

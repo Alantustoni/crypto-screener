@@ -105,20 +105,48 @@ _CONFIG_DEFAULTS: dict = {
 
 
 def carregar_config_screener() -> dict:
-    """Carrega screener_config.json com cache de 5 min. Retorna defaults se arquivo ausente."""
+    """Carrega screener_config — tenta PostgreSQL primeiro, depois arquivo, depois defaults."""
     global _config_cache, _config_cache_ts
     agora = datetime.now()
     if _config_cache and _config_cache_ts and (agora - _config_cache_ts).total_seconds() < _CONFIG_TTL:
         return _config_cache
+    raw = {}
+    # 1. Tenta PostgreSQL (persiste entre redeploys)
     try:
-        import json
-        raw = json.loads(_CONFIG_PATH.read_text(encoding="utf-8"))
-        cfg = {**_CONFIG_DEFAULTS, **{k: v for k, v in raw.items() if not k.startswith("_")}}
+        from signal_history import carregar_config_db
+        db_cfg = carregar_config_db()
+        if db_cfg:
+            raw = db_cfg
     except Exception:
-        cfg = dict(_CONFIG_DEFAULTS)
+        pass
+    # 2. Fallback: arquivo local
+    if not raw:
+        try:
+            import json
+            raw = json.loads(_CONFIG_PATH.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    cfg = {**_CONFIG_DEFAULTS, **{k: v for k, v in raw.items() if not k.startswith("_")}}
     _config_cache    = cfg
     _config_cache_ts = agora
     return cfg
+
+
+def salvar_config_screener(cfg: dict):
+    """Salva screener_config no arquivo e no PostgreSQL (redundância)."""
+    global _config_cache, _config_cache_ts
+    import json
+    try:
+        _CONFIG_PATH.write_text(json.dumps(cfg, indent=2, ensure_ascii=False), encoding="utf-8")
+    except Exception:
+        pass
+    try:
+        from signal_history import salvar_config_db
+        salvar_config_db(cfg)
+    except Exception:
+        pass
+    _config_cache    = cfg
+    _config_cache_ts = datetime.now()
 
 
 # Cache do circuit breaker macro (BTC 24h)
@@ -454,32 +482,7 @@ def get_btc_4h_tendencia() -> str | None:
 
 
 def get_long_short_ratio(symbol: str) -> float | None:
-    """
-    Long/Short Account Ratio global da Binance FAPI. Cache 30min por símbolo.
-    Ratio = longs/shorts. Ex: 2.0 = 67% do mercado está comprado (long).
-    > 2.5 = varejo sobrecarregado long → risco de liquidação descendente (-2)
-    > 1.8 = muito long → cautela (-1)
-    < 0.55 = maioria short → short squeeze potencial (+1)
-    < 0.4  = extremo short → squeeze elevado (+2)
-    """
-    global _ls_cache
-    agora = datetime.now()
-    cached = _ls_cache.get(symbol)
-    if cached and (agora - cached[0]).total_seconds() < 1800:
-        return cached[1]
-    try:
-        r = _get(
-            "https://fapi.binance.com/futures/data/globalLongShortAccountRatio",
-            params={"symbol": symbol, "period": "1h", "limit": 1},
-            timeout=5
-        )
-        data = r.json()
-        if isinstance(data, list) and data:
-            ratio = float(data[0]["longShortRatio"])
-            _ls_cache[symbol] = (agora, ratio)
-            return ratio
-    except Exception:
-        pass
+    """FAPI bloqueado — stub sem chamada de rede."""
     return None
 
 
