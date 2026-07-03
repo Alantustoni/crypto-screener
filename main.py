@@ -914,8 +914,9 @@ async def iniciar_loops_automaticos():
                 tp1_pct    = float(tg_cfg.get("tp1_pct", 5.0))
                 disparos   = monitorar_stops_ativos(stop_pct=sl_pct_cfg, tp1_pct=tp1_pct)
                 for sinal, pct, preco_atual, tipo in disparos:
-                    # Alerta apenas em fechamentos (stop ou TP2)
-                    if tipo in ("stop_automatico", "tp2_automatico"):
+                    # Alerta nos fechamentos (stop, TP2 full, ou moonbag final).
+                    # "tp2_parcial" e "tp1_automatico" são parciais — não alertam.
+                    if tipo in ("stop_automatico", "tp2_automatico", "moonbag_automatico"):
                         try:
                             enviar_fechamento(sinal, pct, preco_atual, tipo)
                         except Exception:

@@ -83,6 +83,13 @@ class TestSaidaATR(unittest.TestCase):
         self.assertEqual(n["exit_sl"], 6.0)
         self.assertEqual(n["exit_tp2"], 15.0)
 
+    def test_breakeven_piso_mais_alto(self):
+        # ATR baixo → breakeven arma no piso 1.5% (não mais 1.0%)
+        self.assertEqual(tm.niveis_saida(1.0)["exit_be"], 1.5)
+        # e sempre abaixo do TP1 (arma antes do alvo, não junto)
+        n = tm.niveis_saida(2.0)
+        self.assertLess(n["exit_be"], n["exit_tp1"])
+
     def test_niveis_atr_invalido_usa_default(self):
         for v in (None, 0, -1, "x"):
             n = tm.niveis_saida(v)
@@ -95,9 +102,37 @@ class TestSaidaATR(unittest.TestCase):
         self.assertAlmostEqual(liquido, bruto - 20 * 0.003)
 
     def test_pl_usa_niveis_do_sinal(self):
-        # exit_tp2=12 no sinal → runner corre até 12%, não os 6% fixos
+        # exit_tp2=12 respeitado no rateio 50/30/20 (não o default 6)
         h = {"exit_tp1": 3, "exit_tp2": 12, "resultado_1h": 13}
-        self.assertAlmostEqual(tm.pl_simulado(h, 20, custo_rt_pct=0.0), 12 / 100 * 20)
+        esperado = (3 * 0.5 + 12 * 0.3 + 13 * 0.2) / 100 * 20
+        self.assertAlmostEqual(tm.pl_simulado(h, 20, custo_rt_pct=0.0), esperado)
+
+
+class TestMoonbag(unittest.TestCase):
+    def test_moonbag_fechado_50_30_20(self):
+        h = {"tp1_automatico_pct": 3, "tp2_automatico_pct": 6,
+             "moonbag_automatico": True, "moonbag_automatico_pct": 10}
+        esperado = (3 * 0.5 + 6 * 0.3 + 10 * 0.2) / 100 * 20   # = 1.06
+        self.assertAlmostEqual(tm.pl_simulado(h, 20, custo_rt_pct=0.0), esperado)
+
+    def test_moonbag_ativo_marca_a_mercado(self):
+        # TP2 batido, 20% ainda correndo → usa último checkpoint p/ o moonbag
+        h = {"tp1_automatico_pct": 3, "tp2_automatico_pct": 6,
+             "moonbag_ativo": True, "resultado_1h": 8}
+        esperado = (3 * 0.5 + 6 * 0.3 + 8 * 0.2) / 100 * 20
+        self.assertAlmostEqual(tm.pl_simulado(h, 20, custo_rt_pct=0.0), esperado)
+
+    def test_runner_trailing_antes_do_tp2_eh_50_50(self):
+        h = {"tp1_automatico_pct": 3, "tp2_automatico": True, "tp2_automatico_pct": 2.5}
+        esperado = (3 * 0.5 + 2.5 * 0.5) / 100 * 20
+        self.assertAlmostEqual(tm.pl_simulado(h, 20, custo_rt_pct=0.0), esperado)
+
+    def test_stop_apos_tp1_nao_zera_o_banco(self):
+        # Stop depois do TP1: 50% já foi vendido no TP1; só os outros 50% stopam
+        h = {"tp1_automatico": True, "tp1_automatico_pct": 3,
+             "stop_automatico": True, "stop_automatico_pct": -1}
+        esperado = (3 * 0.5 + (-1) * 0.5) / 100 * 20   # = 0.2 (positivo!)
+        self.assertAlmostEqual(tm.pl_simulado(h, 20, custo_rt_pct=0.0), esperado)
 
 
 class TestIndicadores(unittest.TestCase):

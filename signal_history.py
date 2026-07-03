@@ -562,10 +562,15 @@ def monitorar_stops_ativos(stop_pct: float = STOP_LOSS_PCT,
     disparos   = []
     modificado = False
 
+    # Aberta = ainda não fechada de vez. Moonbag (moonbag_ativo) segue monitorado
+    # mesmo depois do checkpoint de 8h, até fechar (trailing largo / 24h / breakeven).
     abertas = [
         h for h in historico
-        if h.get("setup_completo") and h.get("resultado_8h") is None
-        and not h.get("stop_automatico") and h.get("tipo") != "manual"
+        if h.get("setup_completo") and h.get("tipo") != "manual"
+        and not h.get("stop_automatico")
+        and not h.get("tp2_automatico")
+        and not h.get("moonbag_automatico")
+        and (h.get("resultado_8h") is None or h.get("moonbag_ativo"))
     ]
     if not abertas:
         return disparos
@@ -590,7 +595,18 @@ def monitorar_stops_ativos(stop_pct: float = STOP_LOSS_PCT,
         _preencher_checkpoint(sinal, pct)
         disparos.append((sinal, pct, preco, "stop_automatico"))
 
-    def _fechar_tp2(sinal, pct, preco, motivo=""):
+    def _marcar_tp2(sinal, pct, preco):
+        # Atingiu TP2: vende 30% e forma o moonbag de 20% (posição NÃO fecha).
+        sinal.update({
+            "tp2_automatico_pct": pct, "tp2_automatico_preco": preco,
+            "tp2_automatico_ts": agora.isoformat(timespec="seconds"),
+            "moonbag_ativo": True, "pico_moonbag": pct,
+        })
+        _preencher_checkpoint(sinal, pct)
+        disparos.append((sinal, pct, preco, "tp2_parcial"))
+
+    def _fechar_runner_full(sinal, pct, preco, motivo=""):
+        # Runner (50%) saiu no trailing ANTES do TP2 → fecha 50/50.
         sinal.update({
             "tp2_automatico": True, "tp2_automatico_pct": pct,
             "tp2_automatico_preco": preco,
@@ -602,6 +618,20 @@ def monitorar_stops_ativos(stop_pct: float = STOP_LOSS_PCT,
             sinal["resultado_8h"] = pct
         disparos.append((sinal, pct, preco, "tp2_automatico"))
 
+    def _fechar_moonbag(sinal, pct, preco, motivo=""):
+        # Fecha o moonbag de 20% → posição totalmente encerrada (50/30/20).
+        sinal.update({
+            "moonbag_automatico": True, "moonbag_automatico_pct": pct,
+            "moonbag_automatico_preco": preco,
+            "moonbag_automatico_ts": agora.isoformat(timespec="seconds"),
+            "moonbag_ativo": False,
+        })
+        if motivo:
+            sinal["moonbag_automatico_motivo"] = motivo
+        if sinal.get("resultado_8h") is None:
+            sinal["resultado_8h"] = pct
+        disparos.append((sinal, pct, preco, "moonbag_automatico"))
+
     for sinal in abertas:
         try:
             ticker      = get_ticker_24h(sinal["symbol"])
@@ -611,6 +641,7 @@ def monitorar_stops_ativos(stop_pct: float = STOP_LOSS_PCT,
 
             entrada = float(sinal["preco_entrada"])
             pct     = round((preco_atual - entrada) / entrada * 100, 2)
+            idade_h = (agora - datetime.fromisoformat(sinal["timestamp"])).total_seconds() / 3600
 
             # Níveis por-sinal (ATR, congelados na entrada) com fallback pros
             # parâmetros/constantes quando o sinal é antigo/manual sem exit_*.
@@ -620,23 +651,42 @@ def monitorar_stops_ativos(stop_pct: float = STOP_LOSS_PCT,
             trail_eff =      sinal.get("exit_trail") or TRAILING_TP1_PCT
             be_eff    =      sinal.get("exit_be")    or BREAKEVEN_TRIGGER_PCT
 
+            # ── MOONBAG (20%) correndo: trailing largo (1.5×) + 24h + breakeven ──
+            if sinal.get("moonbag_ativo"):
+                pico_mb = max(sinal.get("pico_moonbag", tp2_eff), pct)
+                if pico_mb != sinal.get("pico_moonbag"):
+                    sinal["pico_moonbag"] = pico_mb
+                    modificado = True
+                if idade_h >= 24:
+                    _fechar_moonbag(sinal, pct, preco_atual, motivo="timeout_24h")
+                elif pct <= 0:
+                    _fechar_moonbag(sinal, pct, preco_atual, motivo="breakeven")
+                elif (pico_mb - pct) >= trail_eff * 1.5:
+                    _fechar_moonbag(sinal, pct, preco_atual, motivo="trailing")
+                continue
+
+            # ── Stop total (antes de qualquer parcial) ──────────────────────
             if pct <= sl_eff:
                 _fechar_stop(sinal, pct, preco_atual)
 
-            elif sinal.get("stop_breakeven_ativo") and pct <= 0:
+            elif sinal.get("stop_breakeven_ativo") and pct <= 0 and not sinal.get("tp1_automatico"):
                 _fechar_stop(sinal, pct, preco_atual, motivo="breakeven")
 
-            elif sinal.get("tp1_automatico") and not sinal.get("tp2_automatico"):
+            # ── Runner (50%) após TP1: TP2 forma moonbag; senão trailing 50/50 ──
+            elif sinal.get("tp1_automatico"):
                 pico = max(sinal.get("pico_pos_tp1", tp1_eff), pct)
                 if pico != sinal.get("pico_pos_tp1"):
                     sinal["pico_pos_tp1"] = pico
                     modificado = True
-                if pct >= tp2_eff:
-                    _fechar_tp2(sinal, pct, preco_atual)
+                if idade_h >= 24:
+                    _fechar_runner_full(sinal, pct, preco_atual, motivo="timeout_24h")
+                elif pct >= tp2_eff:
+                    _marcar_tp2(sinal, pct, preco_atual)          # vende 30%, forma moonbag
                 elif (pico - pct) >= trail_eff:
-                    _fechar_tp2(sinal, pct, preco_atual, motivo="trailing_tp1")
+                    _fechar_runner_full(sinal, pct, preco_atual, motivo="trailing_tp1")
 
-            elif pct >= tp1_eff and not sinal.get("tp1_automatico"):
+            # ── Primeira vez atingindo TP1 → vende 50% ──────────────────────
+            elif pct >= tp1_eff:
                 sinal.update({
                     "tp1_automatico": True, "tp1_automatico_pct": pct,
                     "tp1_automatico_preco": preco_atual,
@@ -646,7 +696,7 @@ def monitorar_stops_ativos(stop_pct: float = STOP_LOSS_PCT,
                 _preencher_checkpoint(sinal, pct)
                 disparos.append((sinal, pct, preco_atual, "tp1_automatico"))
 
-            # Ativa breakeven ao atingir o gatilho por-ATR (antes do TP1)
+            # Ativa breakeven ao atingir o gatilho por-ATR (só antes do TP1)
             if not sinal.get("tp1_automatico") and pct >= be_eff:
                 if not sinal.get("stop_breakeven_ativo"):
                     sinal["stop_breakeven_ativo"] = True

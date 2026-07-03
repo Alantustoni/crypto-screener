@@ -196,14 +196,24 @@ def enviar_fechamento(sinal, pct, preco_atual, tipo):
     brl_txt    = "  (R$ {:.2f})".format(pl_val * taxa) if taxa else ""
     sinal_brl  = "+" if (pl is not None and pl >= 0) else "-"
 
-    if tipo == "tp2_automatico":
-        tp1_pct = sinal.get("tp1_automatico_pct", 5.0)
-        emoji   = "FECHADO COM LUCRO - {}/USDT\n".format(nome)
-        detalhe = (
-            "Alvo 1: +{:.2f}% (50% vendido)\n"
-            "Alvo 2: +{:.2f}% (50% vendido)\n"
-            "Lucro total: +${:.2f}{}"
-        ).format(tp1_pct, pct, pl_val, brl_txt)
+    if tipo in ("tp2_automatico", "moonbag_automatico"):
+        tp1_pct = sinal.get("tp1_automatico_pct", 3.0)
+        if tipo == "moonbag_automatico":
+            tp2_pct = sinal.get("tp2_automatico_pct", 6.0)
+            emoji   = "FECHADO (MOONBAG) - {}/USDT\n".format(nome)
+            detalhe = (
+                "Alvo 1: +{:.2f}% (50%)\n"
+                "Alvo 2: +{:.2f}% (30%)\n"
+                "Moonbag: {:+.2f}% (20%)\n"
+                "Resultado total: {}${:.2f}{}"
+            ).format(tp1_pct, tp2_pct, pct, sinal_brl, pl_val, brl_txt)
+        else:
+            emoji   = "FECHADO COM LUCRO - {}/USDT\n".format(nome)
+            detalhe = (
+                "Alvo 1: +{:.2f}% (50% vendido)\n"
+                "Alvo 2: +{:.2f}% (50% vendido)\n"
+                "Lucro total: +${:.2f}{}"
+            ).format(tp1_pct, pct, pl_val, brl_txt)
     else:
         motivo  = sinal.get("stop_automatico_motivo", "")
         origem  = " (risco bearish)" if "risco" in motivo else ""
