@@ -570,6 +570,20 @@ def api_analytics():
                       if (fg is not None and fg <= 25 and b4h == "acima_ema50")
                       else "Sinais mistos — opere com cuidado")
 
+    # Cards por moeda (trades fechados, mais recentes primeiro)
+    trades = []
+    for f in sorted(fechados, key=lambda x: x["h"].get("timestamp", ""), reverse=True):
+        h   = f["h"]
+        pos = f["pos"] or 1
+        pct = round(f["pl"] / pos * 100, 2)
+        trades.append({
+            "symbol": h.get("symbol", "").replace("USDT", ""),
+            "pl":     round(f["pl"], 2),
+            "pct":    pct,
+            "tipo":   "dip" if (h.get("sniper_setup") or h.get("reversao_setup")) else "normal",
+            "ts":     h.get("timestamp", "")[5:16].replace("T", " "),
+        })
+
     resumo = {
         "setups_total":  setups_total,
         "fechados":      n_fech,
@@ -580,6 +594,7 @@ def api_analytics():
         "profit_factor": profit_factor,
         "pl_total":      round(acum, 2),
         "por_tipo":      tipo,
+        "trades":        trades[:40],
         "mercado":       {"bom": mkt_bom, "label": mkt_label, "motivo": mkt_motivo,
                           "fg": fg, "btc_4h": b4h, "btc_dom": dom},
     }

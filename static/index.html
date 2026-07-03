@@ -749,6 +749,12 @@
     </div>
   </div>
 
+  <!-- Cards por moeda -->
+  <div id="an-trades-wrap" style="display:none;padding:0 24px 24px">
+    <div style="font-size:.74rem;color:#8b949e;font-weight:600;margin-bottom:10px">💰 Resultado por moeda (fechadas)</div>
+    <div id="an-trades" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px"></div>
+  </div>
+
   <div class="empty-state" id="an-empty" style="display:none">
     <div class="icon">🔬</div>
     <p>Nenhum setup fechado ainda.<br>Aguarde os primeiros resultados chegarem.</p>
@@ -1893,7 +1899,7 @@
         mktBox.style.borderColor=cor+'55';
         document.getElementById('an-mkt-emoji').textContent=(bom?'🟢':ruim?'🔴':'🟡');
         const lab=document.getElementById('an-mkt-label');
-        lab.textContent=(bom?'SIM':ruim?'NÃO':'CAUTELA')+' — '+mkt.label;
+        lab.textContent=bom?'SIM ✅':ruim?'NÃO 🚫':'CAUTELA ⚠️';
         lab.style.color=cor;
         let ctx=[];
         if(mkt.fg!=null) ctx.push('F&G '+mkt.fg);
@@ -1949,6 +1955,33 @@
       set('an-tipo-normal', fmtTipo(t.normal));
       set('an-tipo-dip', fmtTipo(t.dip));
       if(tipoBox) tipoBox.style.display='block';
+
+      // Cards por moeda (fechadas)
+      const trWrap=document.getElementById('an-trades-wrap');
+      const trGrid=document.getElementById('an-trades');
+      const trades=r.trades||[];
+      if(trGrid){
+        if(trades.length){
+          trGrid.innerHTML=trades.map(x=>{
+            const win=x.pl>=0;
+            const cor=win?'#3fb950':'#f85149';
+            const bg=win?'#0d1a10':'#1a0d0d';
+            const dip=x.tipo==='dip';
+            return '<div style="background:'+bg+';border:1px solid '+cor+'33;border-radius:10px;padding:10px 12px">'
+              +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'
+              +'<span style="font-weight:800;color:#e6edf3;font-size:.9rem">'+x.symbol+'</span>'
+              +(dip?'<span style="font-size:.55rem;background:#d2a8ff22;color:#d2a8ff;border:1px solid #d2a8ff44;border-radius:4px;padding:0 4px">DIP</span>':'')
+              +'</div>'
+              +'<div style="font-size:1.05rem;font-weight:800;color:'+cor+'">'+(win?'+':'')+'$'+Math.abs(x.pl).toFixed(2)+'</div>'
+              +'<div style="font-size:.72rem;color:'+cor+'">'+(x.pct>=0?'+':'')+x.pct+'%</div>'
+              +'<div style="font-size:.6rem;color:#4a5568;margin-top:3px">'+(x.ts||'')+'</div>'
+              +'</div>';
+          }).join('');
+          if(trWrap) trWrap.style.display='block';
+        } else if(trWrap){
+          trWrap.style.display='none';
+        }
+      }
 
       if(st) st.textContent='';
     }catch(e){
