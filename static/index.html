@@ -2179,9 +2179,11 @@
         animation:telaPulso 3s ease-in-out infinite;
         max-width:90vw;
         word-break:break-word;
-      ">${texto}</div>
+      "></div>
       <div style="color:#30363d;font-size:.75rem;margin-top:3rem">clique para fechar</div>
     `;
+    // Sanitização (auditoria): texto vem do Telegram; usa textContent p/ evitar XSS
+    el.querySelector('#tela-texto').textContent = texto;
     el.addEventListener("click", ()=>{ fecharTela(); _limparTelaServidor(); });
     document.body.appendChild(el);
 

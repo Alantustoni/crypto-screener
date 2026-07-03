@@ -1,10 +1,17 @@
 import asyncio
 import json
+import logging
 import os
 import secrets
 from datetime import datetime
 from pathlib import Path
-from fastapi import FastAPI, Query, Request, Response
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
+log = logging.getLogger("crypto_screener")
+from fastapi import FastAPI, Query, Request, Response, Body
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -12,6 +19,7 @@ from screener import rodar_screener, INTERVALOS, TOP_PAIRS, get_ticker_24h, get_
 from backtesting import backtest
 from telegram_alert import checar_e_alertar, testar_conexao, carregar_config, salvar_config, enviar_relatorio_diario, enviar_resumo_posicoes, enviar_fechamento, processar_comandos
 from signal_history import registrar_sinais, registrar_manual, verificar_resultados, obter_historico_com_stats, carregar_historico, calcular_calibracao, monitorar_stops_ativos
+from trading_math import calcular_posicao, pl_simulado
 
 # ─── AUTH ───────────────────────────────────────────────────────────────────
 DASHBOARD_PASSWORD = os.environ.get("DASHBOARD_PASSWORD", "")
@@ -24,14 +32,24 @@ _PUBLIC_PREFIXES = ("/static/",)
 
 class AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        if not DASHBOARD_PASSWORD:
-            return await call_next(request)
         path = request.url.path
+        # Rotas públicas (login, estáticos, polling da tela) sempre liberadas
         if path in _PUBLIC_PATHS or any(path.startswith(p) for p in _PUBLIC_PREFIXES):
             return await call_next(request)
-        # Chave interna para automação (scheduled tasks)
-        if INTERNAL_API_KEY and request.headers.get("X-Internal-Key") == INTERNAL_API_KEY:
+        # Chave interna para automação (scheduled tasks) — credencial própria
+        if INTERNAL_API_KEY and secrets.compare_digest(
+            request.headers.get("X-Internal-Key", ""), INTERNAL_API_KEY
+        ):
             return await call_next(request)
+        # Falha fechado: sem senha configurada no servidor, nada protegido é servido
+        if not DASHBOARD_PASSWORD:
+            if path.startswith("/api/"):
+                return JSONResponse(
+                    {"error": "server_auth_not_configured",
+                     "msg": "DASHBOARD_PASSWORD não configurada no servidor."},
+                    status_code=503,
+                )
+            return RedirectResponse(url="/login")
         token = request.cookies.get("session_token", "")
         if token and token in _valid_tokens:
             return await call_next(request)
@@ -109,10 +127,16 @@ def login_page():
 
 
 @app.post("/api/auth/login")
-def auth_login(password: str = Query(...), response: Response = None):
+def auth_login(response: Response, payload: dict = Body(default={})):
+    # Falha fechado: servidor sem senha não autentica ninguém
     if not DASHBOARD_PASSWORD:
-        return {"sucesso": True, "msg": "auth desabilitada"}
-    if password == DASHBOARD_PASSWORD:
+        return JSONResponse(
+            {"sucesso": False, "msg": "Servidor sem senha configurada."},
+            status_code=503,
+        )
+    password = str(payload.get("password", ""))
+    # Comparação de tempo constante (evita timing attack)
+    if secrets.compare_digest(password, DASHBOARD_PASSWORD):
         token = secrets.token_hex(32)
         _valid_tokens.add(token)
         response.set_cookie(
@@ -163,7 +187,7 @@ def scan(
                   _h.get("resultado_2h") or _h.get("resultado_1h"))
             if _r is not None:
                 _s   = _h.get("score", 8)
-                _pos = min(_base * (2.0 if _s >= 10 else 1.5 if _s >= 9 else 1.0), _capital * 0.10)
+                _pos = calcular_posicao(_s, _base, _capital)
                 _pl_hoje += _r / 100 * _pos
         _cb_limite = _capital * 0.05
         if _capital > 0 and _pl_hoje < -_cb_limite:
@@ -252,19 +276,16 @@ def scan(
 
 
 def _calcular_score_minimo() -> int:
-    """Retorna o score mínimo efetivo com todos os ajustes aplicados."""
+    """Retorna o score mínimo efetivo (deve espelhar analisar_par).
+    Modo agressivo: só a dominância do BTC ajusta (+1); os bumps de medo e
+    BTC<EMA50(4H) foram removidos para acabar com o efeito duplo."""
     try:
         cfg = carregar_config_screener()
-        base = int(cfg.get("score_minimo_setup", 8))
-        fg = get_fear_greed()
-        fg_v = (fg or {}).get("value")
+        base = int(cfg.get("score_minimo_setup", 5))
         dom = get_btc_dominance()
-        btc4h = get_btc_4h_tendencia()
-        return base + (2 if fg_v is not None and fg_v <= 25 else 0) \
-                    + (1 if dom is not None and dom > 55 else 0) \
-                    + (1 if btc4h == "abaixo_ema50" else 0)
+        return base + (1 if dom is not None and dom > 55 else 0)
     except Exception:
-        return 8
+        return 5
 
 
 @app.get("/api/mercado")
@@ -428,46 +449,9 @@ def api_analytics():
     capital    = float(tg_cfg.get("capital_total", 200))
 
     def posicao_de(h):
-        s    = h.get("score", 8)
-        mult = 2.0 if s >= 10 else 1.5 if s >= 9 else 1.0
-        pos  = base_valor * mult
-        return min(pos, capital * 0.10) if capital > 0 else pos
+        return calcular_posicao(h.get("score", 8), base_valor, capital)
 
-    def pl_simulado(h, pos):
-        # TP2: 50% vendido no pico TP1 real + 50% no pico TP2 real
-        if h.get("tp2_automatico"):
-            tp1_pct = h.get("tp1_automatico_pct", TP1)
-            tp2_pct = h.get("tp2_automatico_pct", TP2)
-            return (tp1_pct / 100 * pos * 0.5) + (tp2_pct / 100 * pos * 0.5)
-        # Stop: usa o pct real do momento do stop
-        if h.get("stop_automatico"):
-            pct = h.get("stop_automatico_pct", -SL)
-            return pct / 100 * pos
-        # TP1 já disparado: 50% vendido no pico real + 50% pelo último checkpoint
-        if h.get("tp1_automatico"):
-            tp1_pct = h.get("tp1_automatico_pct", TP1)
-            vals = [h.get("resultado_1h"), h.get("resultado_2h"),
-                    h.get("resultado_4h"), h.get("resultado_8h"),
-                    h.get("resultado_24h")]
-            vals = [v for v in vals if v is not None]
-            last_v = vals[-1] if vals else tp1_pct
-            return tp1_pct / 100 * pos * 0.5 + last_v / 100 * pos * 0.5
-        # Posição aberta: usa checkpoints disponíveis
-        vals = [h.get("resultado_1h"), h.get("resultado_2h"),
-                h.get("resultado_4h"), h.get("resultado_8h"),
-                h.get("resultado_24h")]
-        vals = [v for v in vals if v is not None]
-        if not vals:
-            return None
-        max_v  = max(vals)
-        last_v = vals[-1]
-        if any(v <= -SL for v in vals):
-            return -SL / 100 * pos
-        if max_v >= TP2:
-            return TP2 / 100 * pos
-        if max_v >= TP1:
-            return TP1 / 100 * pos * 0.5 + last_v / 100 * pos * 0.5
-        return last_v / 100 * pos
+    # pl_simulado agora vem de trading_math (fonte única) — import no topo.
 
     fechados = []
     for h in historico_data:
@@ -755,20 +739,22 @@ def health_check():
     btc_4h  = get_btc_4h_tendencia()
     fg_value = (fg or {}).get("value")
 
-    # ── Score mínimo efetivo ─────────────────────────────────────────
+    # ── Score mínimo efetivo (modo agressivo) ────────────────────────
+    # Espelha analisar_par: só a dominância ajusta (+1); bumps de medo e
+    # BTC<EMA50(4H) foram removidos (fim do efeito duplo).
     config_s  = carregar_config_screener()
-    score_base = int(config_s.get("score_minimo_setup", 8))
-    fg_ajuste      = 2 if (fg_value is not None and fg_value <= 25) else 0
+    score_base = int(config_s.get("score_minimo_setup", 5))
+    fg_ajuste      = 0
     btc_dom_ajuste = 1 if (btc_dom is not None and btc_dom > 55) else 0
-    btc_4h_ajuste  = 1 if btc_4h == "abaixo_ema50" else 0
+    btc_4h_ajuste  = 0
     score_min_efetivo = score_base + fg_ajuste + btc_dom_ajuste + btc_4h_ajuste
 
-    if score_min_efetivo >= 11:
-        modo = "conservador_extremo"
-    elif score_min_efetivo >= 10:
+    if score_min_efetivo >= 8:
         modo = "conservador"
+    elif score_min_efetivo >= 7:
+        modo = "cauteloso"
     else:
-        modo = "normal"
+        modo = "agressivo"
 
     # ── Histórico ────────────────────────────────────────────────────
     historico   = carregar_historico()
@@ -778,9 +764,7 @@ def health_check():
     capital     = float(tg_cfg.get("capital_total", 200))
 
     def _pos(h):
-        s = h.get("score", 8)
-        mult = 2.0 if s >= 10 else 1.5 if s >= 9 else 1.0
-        return min(base_valor * mult, capital * 0.10) if capital > 0 else base_valor * mult
+        return calcular_posicao(h.get("score", 8), base_valor, capital)
 
     def _fechado(h):
         return bool(h.get("stop_automatico")) or h.get("resultado_8h") is not None
@@ -869,28 +853,9 @@ def health_check():
     }
 
 
-@app.get("/api/restart")
-async def restart_server():
-    import subprocess, sys
-    async def _kill():
-        await asyncio.sleep(0.5)
-        cwd = os.path.dirname(os.path.abspath(__file__))
-        ppid = os.getppid()
-        pid  = os.getpid()
-        bat = (
-            "@echo off\n"
-            "taskkill /F /PID {} >nul 2>&1\n".format(ppid) +
-            "taskkill /F /PID {} >nul 2>&1\n".format(pid) +
-            "timeout /t 2 >nul\n"
-            'start "Crypto Screener" cmd /k "{} main.py"\n'.format(sys.executable)
-        )
-        bat_path = os.path.join(cwd, "_restart.bat")
-        with open(bat_path, "w") as f:
-            f.write(bat)
-        subprocess.Popen(["cmd", "/c", bat_path], cwd=cwd,
-                         creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP)
-    asyncio.create_task(_kill())
-    return {"status": "ok", "msg": "Reiniciando servidor..."}
+# Endpoint /api/restart removido (auditoria): executava .bat via subprocess
+# (RCE por design + Windows-only, incompatível com o deploy Linux/Railway).
+# Restart é responsabilidade do orquestrador (Railway restartPolicy).
 
 
 # ─── LOOPS DE BACKGROUND ────────────────────────────────────────────────────
@@ -977,54 +942,59 @@ async def iniciar_loops_automaticos():
         while True:
             try:
                 from datetime import datetime as _dt
-                from signal_history import carregar_historico as _ch, salvar_historico as _sh, CHECKPOINTS
+                from signal_history import (carregar_historico as _ch,
+                                            salvar_historico as _sh,
+                                            CHECKPOINTS, write_lock)
                 from screener import get_ticker_24h as _gt
 
-                hist   = _ch()
-                agora  = _dt.now()
-                salvar = False
+                # Serializa carrega→muta→salva sob o mesmo lock dos demais
+                # mutadores (evita lost update com handlers de request/threadpool).
+                with write_lock:
+                    hist   = _ch()
+                    agora  = _dt.now()
+                    salvar = False
 
-                abertas = [
-                    h for h in hist
-                    if h.get("setup_completo")
-                    and h.get("resultado_8h") is None
-                    and not h.get("stop_automatico")
-                    and h.get("tipo") != "manual"
-                ]
+                    abertas = [
+                        h for h in hist
+                        if h.get("setup_completo")
+                        and h.get("resultado_8h") is None
+                        and not h.get("stop_automatico")
+                        and h.get("tipo") != "manual"
+                    ]
 
-                for pos in abertas:
-                    try:
-                        risco = analisar_risco_posicao(pos["symbol"], float(pos["preco_entrada"]))
-                        if risco.get("score_risco", 0) < 8:
+                    for pos in abertas:
+                        try:
+                            risco = analisar_risco_posicao(pos["symbol"], float(pos["preco_entrada"]))
+                            if risco.get("score_risco", 0) < 8:
+                                continue
+
+                            ticker      = _gt(pos["symbol"])
+                            preco_atual = float(ticker.get("lastPrice", 0))
+                            if preco_atual == 0:
+                                continue
+
+                            entrada = float(pos["preco_entrada"])
+                            pct     = round((preco_atual - entrada) / entrada * 100, 2)
+
+                            pos["stop_automatico"]        = True
+                            pos["stop_automatico_pct"]    = pct
+                            pos["stop_automatico_preco"]  = preco_atual
+                            pos["stop_automatico_ts"]     = agora.isoformat(timespec="seconds")
+                            pos["stop_automatico_motivo"] = "risco_bearish_{}".format(risco["score_risco"])
+
+                            ts_pos   = _dt.fromisoformat(pos["timestamp"])
+                            diff_min = (agora - ts_pos).total_seconds() / 60
+                            for mins, campo in CHECKPOINTS:
+                                if diff_min >= mins * 0.5 and pos.get(campo) is None:
+                                    pos[campo] = pct
+                                    break
+
+                            salvar = True
+                        except Exception:
                             continue
 
-                        ticker      = _gt(pos["symbol"])
-                        preco_atual = float(ticker.get("lastPrice", 0))
-                        if preco_atual == 0:
-                            continue
-
-                        entrada = float(pos["preco_entrada"])
-                        pct     = round((preco_atual - entrada) / entrada * 100, 2)
-
-                        pos["stop_automatico"]        = True
-                        pos["stop_automatico_pct"]    = pct
-                        pos["stop_automatico_preco"]  = preco_atual
-                        pos["stop_automatico_ts"]     = agora.isoformat(timespec="seconds")
-                        pos["stop_automatico_motivo"] = "risco_bearish_{}".format(risco["score_risco"])
-
-                        ts_pos   = _dt.fromisoformat(pos["timestamp"])
-                        diff_min = (agora - ts_pos).total_seconds() / 60
-                        for mins, campo in CHECKPOINTS:
-                            if diff_min >= mins * 0.5 and pos.get(campo) is None:
-                                pos[campo] = pct
-                                break
-
-                        salvar = True
-                    except Exception:
-                        continue
-
-                if salvar:
-                    _sh(hist)
+                    if salvar:
+                        _sh(hist)
             except Exception:
                 pass
             await asyncio.sleep(5 * 60)

@@ -175,7 +175,9 @@ def encontrar_thresholds_otimos(historico, checkpoint="resultado_1h"):
     Grade: score_min em [7,8,9] x fr_min em [0.5,1.0,1.5,2.0,2.5]
     Maximiza: win_rate * (1 + max(avg_return, 0))
     """
-    score_range = [7, 8, 9]
+    # (agressivo) grade estendida para baixo — antes [7,8,9], o que forçava o
+    # score mínimo de volta pra cima a cada calibração.
+    score_range = [5, 6, 7, 8]
     fr_range    = [0.5, 1.0, 1.5, 2.0, 2.5]
 
     melhor = None

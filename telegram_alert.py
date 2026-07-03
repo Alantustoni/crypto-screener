@@ -3,6 +3,7 @@ import os
 import requests
 from datetime import datetime, timedelta
 from pathlib import Path
+from trading_math import calcular_posicao, pl_simulado, niveis_saida
 
 # Arquivos de estado ficam em DATA_DIR (Railway volume) para persistir entre redeploys.
 _PROJ_DIR    = Path(__file__).parent
@@ -63,9 +64,8 @@ def enviar_mensagem(token, chat_id, texto):
 
 
 def _calcular_posicao(score, base_valor, capital):
-    mult = 2.0 if score >= 10 else 1.5 if score >= 9 else 1.0
-    pos  = base_valor * mult
-    return min(pos, capital * 0.10) if capital > 0 else pos
+    # Delega para a fonte única (trading_math). Mantido por compatibilidade.
+    return calcular_posicao(score, base_valor, capital)
 
 
 def _taxa_brl():
@@ -80,33 +80,8 @@ def _taxa_brl():
 
 
 def _pl_simulado(h, pos, SL=3.0, TP1=3.0, TP2=6.0):
-    # TP2: 50% vendido no pico TP1 real + 50% no pico TP2 real
-    if h.get("tp2_automatico"):
-        return (h.get("tp1_automatico_pct", TP1) / 100 * pos * 0.5) + \
-               (h.get("tp2_automatico_pct", TP2) / 100 * pos * 0.5)
-    # Stop: usa o pct real do momento do stop
-    if h.get("stop_automatico"):
-        return h.get("stop_automatico_pct", -SL) / 100 * pos
-    # TP1 já disparado: 50% vendido no pico real + 50% pelo último checkpoint
-    if h.get("tp1_automatico"):
-        tp1_pct = h.get("tp1_automatico_pct", TP1)
-        vals = [h.get("resultado_{}".format(t)) for t in ("1h","2h","4h","8h","24h")]
-        vals = [v for v in vals if v is not None]
-        last_v = vals[-1] if vals else tp1_pct
-        return tp1_pct / 100 * pos * 0.5 + last_v / 100 * pos * 0.5
-    # Posição ainda aberta: usa checkpoints disponíveis
-    vals = [h.get("resultado_{}".format(t)) for t in ("1h","2h","4h","8h","24h")]
-    vals = [v for v in vals if v is not None]
-    if not vals:
-        return None
-    max_v = max(vals); last_v = vals[-1]
-    if any(v <= -SL for v in vals):
-        return -SL / 100 * pos
-    if max_v >= TP2:
-        return TP2 / 100 * pos
-    if max_v >= TP1:
-        return TP1 / 100 * pos * 0.5 + last_v / 100 * pos * 0.5
-    return last_v / 100 * pos
+    # Delega para a fonte única (trading_math). Mantido por compatibilidade.
+    return pl_simulado(h, pos, sl=SL, tp1=TP1, tp2=TP2)
 
 
 # ─── ALERTA DE ENTRADA ───────────────────────────────────────────────────────
@@ -148,7 +123,11 @@ def checar_e_alertar(resultados):
             continue
 
         preco     = float(r["preco"])
-        sl_pct    = 3.0; tp1_pct = 3.0; tp2_pct = 6.0; trail_pct = 2.0
+        # Níveis ajustados à volatilidade da moeda (ATR) — mesmos que o servidor
+        # usará para monitorar stop/alvos/trailing. Fallback 3/6 se sem ATR.
+        _niv      = niveis_saida(r.get("atr_pct"))
+        sl_pct    = _niv["exit_sl"]; tp1_pct = _niv["exit_tp1"]
+        tp2_pct   = _niv["exit_tp2"]; trail_pct = _niv["exit_trail"]
         sl_preco  = round(preco * (1 - sl_pct  / 100), 6)
         tp1_preco = round(preco * (1 + tp1_pct / 100), 6)
         tp2_preco = round(preco * (1 + tp2_pct / 100), 6)
@@ -266,9 +245,7 @@ def enviar_resumo_posicoes(historico):
     capital    = float(config.get("capital_total", 200))
 
     def posicao_de(h):
-        s = h.get("score", 8)
-        mult = 2.0 if s >= 10 else 1.5 if s >= 9 else 1.0
-        return min(base_valor * mult, capital * 0.10) if capital > 0 else base_valor * mult
+        return calcular_posicao(h.get("score", 8), base_valor, capital)
 
     abertas = []; lucro_ops = []; prej_ops = []
 
@@ -342,13 +319,11 @@ def enviar_relatorio_diario(historico):
     if not token or not chat_id or "SEU_TOKEN" in token:
         return False
 
-    base_valor = float(config.get("base_valor_trade", 200))
+    base_valor = float(config.get("base_valor_trade", 20))
     capital    = float(config.get("capital_total", 200))
 
     def posicao_de(h):
-        s = h.get("score", 8)
-        mult = 2.0 if s >= 10 else 1.5 if s >= 9 else 1.0
-        return min(base_valor * mult, capital * 0.10) if capital > 0 else base_valor * mult
+        return calcular_posicao(h.get("score", 8), base_valor, capital)
 
     abertas = []; fechadas = []
     for h in historico:
@@ -521,9 +496,7 @@ def processar_comandos(historico):
 
 def _cmd_posicoes(historico, base_valor, capital):
     def posicao_de(h):
-        s = h.get("score", 8)
-        mult = 2.0 if s >= 10 else 1.5 if s >= 9 else 1.0
-        return min(base_valor * mult, capital * 0.10) if capital > 0 else base_valor * mult
+        return calcular_posicao(h.get("score", 8), base_valor, capital)
 
     abertas = [
         h for h in historico
@@ -563,9 +536,7 @@ def _cmd_posicoes(historico, base_valor, capital):
 
 def _cmd_resultado(historico, base_valor, capital):
     def posicao_de(h):
-        s = h.get("score", 8)
-        mult = 2.0 if s >= 10 else 1.5 if s >= 9 else 1.0
-        return min(base_valor * mult, capital * 0.10) if capital > 0 else base_valor * mult
+        return calcular_posicao(h.get("score", 8), base_valor, capital)
 
     fechadas = []
     for h in historico:
@@ -612,9 +583,7 @@ def _cmd_resultado(historico, base_valor, capital):
 
 def _cmd_prejuizo(historico, base_valor, capital):
     def posicao_de(h):
-        s = h.get("score", 8)
-        mult = 2.0 if s >= 10 else 1.5 if s >= 9 else 1.0
-        return min(base_valor * mult, capital * 0.10) if capital > 0 else base_valor * mult
+        return calcular_posicao(h.get("score", 8), base_valor, capital)
 
     perdas = []
     for h in historico:

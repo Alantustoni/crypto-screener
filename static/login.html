@@ -292,9 +292,11 @@
       erro.style.display = 'none';
 
       try {
-        const resp = await fetch('/api/auth/login?password=' + encodeURIComponent(pwd), {
+        const resp = await fetch('/api/auth/login', {
           method: 'POST',
-          credentials: 'include'
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: pwd })
         });
         if (resp.ok) {
           window.location.href = '/';

@@ -7,12 +7,42 @@ Detecção automática:
   - DATABASE_URL definida → PostgreSQL (Railway, persistente entre deploys)
   - Sem DATABASE_URL       → SQLite local (desenvolvimento)
 """
+import functools
 import json
+import logging
 import os
 import sqlite3
+import threading
 from pathlib import Path
 from datetime import datetime
 from screener import get_ticker_24h, get_fear_greed, get_klines
+from trading_math import pl_simulado as _pl_simulado_canonico, niveis_saida
+
+log = logging.getLogger("crypto_screener")
+
+# ── Concorrência ──────────────────────────────────────────────────────────────
+# Lock global de escrita. Os endpoints do FastAPI rodam em threadpool e os loops
+# de background no event loop; sem serialização, dois "carrega lista → muta →
+# salva" concorrentes sobrescrevem um ao outro (lost update). Reentrante (RLock)
+# para tolerar chamadas aninhadas. Exposto como write_lock para uso externo
+# (ex.: loop_protecao_risco em main.py).
+write_lock = threading.RLock()
+_write_lock = write_lock  # alias interno
+
+
+def _com_lock(fn):
+    """Serializa a função inteira sob o write_lock (carrega→muta→salva atômico)."""
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        with _write_lock:
+            return fn(*args, **kwargs)
+    return wrapper
+
+
+def _proximo_id(historico: list) -> int:
+    """ID monotônico baseado no maior id existente (evita colisão que o antigo
+    len(historico)+1 causava quando entradas eram removidas)."""
+    return max((int(h.get("id") or 0) for h in historico), default=0) + 1
 
 
 # ── Configuração de ambiente ──────────────────────────────────────────────────
@@ -48,7 +78,7 @@ COOLDOWN_LOSS_MIN = 480
 CIRCUIT_BREAKER_N     = 3
 CIRCUIT_BREAKER_HORAS = 3
 
-REGIME_SCORE_MINIMO = 10
+REGIME_SCORE_MINIMO = 5   # (agressivo) alinhado ao score base — antes 10, depois 7
 REGIME_BTC_CANDLES  = 6
 REGIME_BTC_QUEDA    = -1.5
 REGIME_FG_MAXIMO    = 25
@@ -291,14 +321,18 @@ def salvar_historico(historico: list):
         _sqlite_salvar(historico)
 
 
-# Inicialização na carga do módulo
-_criar_tabela()
+# Inicialização na carga do módulo — resiliente: falha de DB não impede o import
+try:
+    _criar_tabela()
+except Exception:
+    log.exception("Falha ao inicializar a tabela de sinais no import")
 
 
 # ════════════════════════════════════════════════════════════════════════════
 #  REGISTRO MANUAL
 # ════════════════════════════════════════════════════════════════════════════
 
+@_com_lock
 def registrar_manual(symbol: str, preco_entrada: float, nota: str = "") -> dict:
     symbol = symbol.upper()
     if not symbol.endswith("USDT"):
@@ -306,7 +340,7 @@ def registrar_manual(symbol: str, preco_entrada: float, nota: str = "") -> dict:
     historico = carregar_historico()
     agora = datetime.now()
     entrada = {
-        "id": len(historico) + 1,
+        "id": _proximo_id(historico),
         "timestamp": agora.isoformat(timespec="seconds"),
         "symbol": symbol,
         "preco_entrada": preco_entrada,
@@ -375,6 +409,7 @@ def _regime_bearish() -> bool:
 #  REGISTRO DE SINAIS
 # ════════════════════════════════════════════════════════════════════════════
 
+@_com_lock
 def registrar_sinais(resultados: list, score_minimo: int = SCORE_MINIMO) -> int:
     historico = carregar_historico()
     agora     = datetime.now()
@@ -390,7 +425,15 @@ def registrar_sinais(resultados: list, score_minimo: int = SCORE_MINIMO) -> int:
     for r in resultados:
         if not r.get("setup_completo"):
             continue
-        if r.get("score", 0) < score_minimo_efetivo:
+        # Setups de queda (sniper / reversão) são qualificados por CONFLUÊNCIA
+        # de sinais de fundo no screener, não por score — em downtrend o score
+        # é naturalmente penalizado. Piso -2 apenas barra o pior ('faca caindo'
+        # dá <= -3). Setups normais seguem o piso (base/regime).
+        if r.get("sniper_setup") or r.get("reversao_setup"):
+            piso = -2
+        else:
+            piso = score_minimo_efetivo
+        if r.get("score", 0) < piso:
             continue
 
         symbol = r["symbol"]
@@ -415,8 +458,8 @@ def registrar_sinais(resultados: list, score_minimo: int = SCORE_MINIMO) -> int:
         if posicao_aberta:
             continue
 
-        historico.append({
-            "id": len(historico) + 1,
+        entrada = {
+            "id": _proximo_id(historico),
             "timestamp": agora.isoformat(timespec="seconds"),
             "symbol": symbol,
             "preco_entrada": r["preco"],
@@ -426,6 +469,8 @@ def registrar_sinais(resultados: list, score_minimo: int = SCORE_MINIMO) -> int:
             "funding_sinal": r.get("funding_sinal"),
             "mtf_tendencia": r.get("mtf_tendencia"),
             "setup_completo": r.get("setup_completo", False),
+            "sniper_setup": r.get("sniper_setup", False),
+            "reversao_setup": r.get("reversao_setup", False),
             "intervalo": r.get("intervalo", "1h"),
             "sinais": r.get("sinais", []),
             "market_structure": r.get("market_structure"),
@@ -439,10 +484,15 @@ def registrar_sinais(resultados: list, score_minimo: int = SCORE_MINIMO) -> int:
             "setor_cascade": r.get("setor_cascade"),
             "shadow_rsi": r.get("shadow_rsi"),
             "ob_imbalance": r.get("ob_imbalance"),
+            "atr_pct": r.get("atr_pct"),
             "resultado_1h": None, "resultado_2h": None, "resultado_4h": None,
             "resultado_8h": None, "resultado_16h": None, "resultado_24h": None,
             "verificado_em": None,
-        })
+        }
+        # Níveis de saída ajustados à volatilidade da moeda (ATR) — congelados
+        # na entrada. Usados por monitorar_stops_ativos e pelo P&L simulado.
+        entrada.update(niveis_saida(r.get("atr_pct")))
+        historico.append(entrada)
         novos += 1
 
     if novos:
@@ -454,6 +504,7 @@ def registrar_sinais(resultados: list, score_minimo: int = SCORE_MINIMO) -> int:
 #  VERIFICAÇÃO DE CHECKPOINTS
 # ════════════════════════════════════════════════════════════════════════════
 
+@_com_lock
 def verificar_resultados() -> dict:
     historico        = carregar_historico()
     agora            = datetime.now()
@@ -502,6 +553,7 @@ def verificar_resultados() -> dict:
 #  MONITORAMENTO DE STOPS / TPs / TRAILING
 # ════════════════════════════════════════════════════════════════════════════
 
+@_com_lock
 def monitorar_stops_ativos(stop_pct: float = STOP_LOSS_PCT,
                            tp1_pct:  float = TAKE_PROFIT_1,
                            tp2_pct:  float = TAKE_PROFIT_2) -> list:
@@ -560,23 +612,31 @@ def monitorar_stops_ativos(stop_pct: float = STOP_LOSS_PCT,
             entrada = float(sinal["preco_entrada"])
             pct     = round((preco_atual - entrada) / entrada * 100, 2)
 
-            if pct <= stop_pct:
+            # Níveis por-sinal (ATR, congelados na entrada) com fallback pros
+            # parâmetros/constantes quando o sinal é antigo/manual sem exit_*.
+            sl_eff    = -abs(sinal.get("exit_sl")    or abs(stop_pct))
+            tp1_eff   =      sinal.get("exit_tp1")   or tp1_pct
+            tp2_eff   =      sinal.get("exit_tp2")   or tp2_pct
+            trail_eff =      sinal.get("exit_trail") or TRAILING_TP1_PCT
+            be_eff    =      sinal.get("exit_be")    or BREAKEVEN_TRIGGER_PCT
+
+            if pct <= sl_eff:
                 _fechar_stop(sinal, pct, preco_atual)
 
             elif sinal.get("stop_breakeven_ativo") and pct <= 0:
                 _fechar_stop(sinal, pct, preco_atual, motivo="breakeven")
 
             elif sinal.get("tp1_automatico") and not sinal.get("tp2_automatico"):
-                pico = max(sinal.get("pico_pos_tp1", tp1_pct), pct)
+                pico = max(sinal.get("pico_pos_tp1", tp1_eff), pct)
                 if pico != sinal.get("pico_pos_tp1"):
                     sinal["pico_pos_tp1"] = pico
                     modificado = True
-                if pct >= tp2_pct:
+                if pct >= tp2_eff:
                     _fechar_tp2(sinal, pct, preco_atual)
-                elif (pico - pct) >= TRAILING_TP1_PCT:
+                elif (pico - pct) >= trail_eff:
                     _fechar_tp2(sinal, pct, preco_atual, motivo="trailing_tp1")
 
-            elif pct >= tp1_pct and not sinal.get("tp1_automatico"):
+            elif pct >= tp1_eff and not sinal.get("tp1_automatico"):
                 sinal.update({
                     "tp1_automatico": True, "tp1_automatico_pct": pct,
                     "tp1_automatico_preco": preco_atual,
@@ -586,8 +646,8 @@ def monitorar_stops_ativos(stop_pct: float = STOP_LOSS_PCT,
                 _preencher_checkpoint(sinal, pct)
                 disparos.append((sinal, pct, preco_atual, "tp1_automatico"))
 
-            # Ativa breakeven em +2% (antes do TP1)
-            if not sinal.get("tp1_automatico") and pct >= BREAKEVEN_TRIGGER_PCT:
+            # Ativa breakeven ao atingir o gatilho por-ATR (antes do TP1)
+            if not sinal.get("tp1_automatico") and pct >= be_eff:
                 if not sinal.get("stop_breakeven_ativo"):
                     sinal["stop_breakeven_ativo"] = True
                     modificado = True
@@ -605,30 +665,9 @@ def monitorar_stops_ativos(stop_pct: float = STOP_LOSS_PCT,
 # ════════════════════════════════════════════════════════════════════════════
 
 def _calcular_pl_sinal(h: dict, pos: float = 20.0):
-    SL, TP1, TP2 = 3.0, 5.0, 10.0
-    if h.get("tp2_automatico"):
-        return (h.get("tp1_automatico_pct", TP1) / 100 * pos * 0.5 +
-                h.get("tp2_automatico_pct", TP2) / 100 * pos * 0.5)
-    if h.get("stop_automatico"):
-        return h.get("stop_automatico_pct", -SL) / 100 * pos
-    if h.get("tp1_automatico"):
-        tp1_pct = h.get("tp1_automatico_pct", TP1)
-        vals = [h.get("resultado_{}".format(t)) for t in ("1h", "2h", "4h", "8h", "24h")]
-        vals = [v for v in vals if v is not None]
-        last = vals[-1] if vals else tp1_pct
-        return tp1_pct / 100 * pos * 0.5 + last / 100 * pos * 0.5
-    vals = [h.get("resultado_{}".format(t)) for t in ("1h", "2h", "4h", "8h", "24h")]
-    vals = [v for v in vals if v is not None]
-    if not vals:
-        return None
-    max_v, last_v = max(vals), vals[-1]
-    if any(v <= -SL for v in vals):
-        return -SL / 100 * pos
-    if max_v >= TP2:
-        return TP2 / 100 * pos
-    if max_v >= TP1:
-        return TP1 / 100 * pos * 0.5 + last_v / 100 * pos * 0.5
-    return last_v / 100 * pos
+    # Delega para a fonte única (trading_math). Antes usava TP1=5/TP2=10,
+    # divergente do resto do sistema (3/6) — bug corrigido na auditoria.
+    return _pl_simulado_canonico(h, pos)
 
 
 def _taxa(sinais: list, campo: str) -> dict:

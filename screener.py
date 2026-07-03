@@ -79,8 +79,14 @@ _config_cache: dict = {}
 _config_cache_ts: datetime | None = None
 _CONFIG_TTL = 300  # segundos (5 min)
 
+# Teto agressivo do score mínimo de setup. O valor persistido (Postgres/arquivo)
+# e a auto-calibração são CLAMPADOS a este teto em carregar_config_screener,
+# garantindo que o modo agressivo tenha efeito imediato e não seja revertido.
+# Para voltar a deixar a calibração controlar livremente, aumente/remova o teto.
+_SCORE_MIN_TETO = 5
+
 _CONFIG_DEFAULTS: dict = {
-    "score_minimo_setup":      8,
+    "score_minimo_setup":      5,
     "score_minimo_quase":      5,
     "criterios_minimos_setup": 3,
     "criterios_minimos_quase": 2,
@@ -95,7 +101,6 @@ _CONFIG_DEFAULTS: dict = {
     "ob_threshold":            0.30,
     "ob_bonus":                1,
     "ob_penalidade":           2,
-    "mtf_bonus":               2,
     "mtf_contradiz_penalidade":3,
     "market_bearish_penalidade":2,
     "meme_penalidade":         2,
@@ -127,6 +132,12 @@ def carregar_config_screener() -> dict:
         except Exception:
             pass
     cfg = {**_CONFIG_DEFAULTS, **{k: v for k, v in raw.items() if not k.startswith("_")}}
+    # Clamp agressivo: nunca deixa o score mínimo de setup subir acima do teto,
+    # mesmo que o valor persistido/calibrado seja maior (efeito imediato + estável).
+    try:
+        cfg["score_minimo_setup"] = min(int(cfg.get("score_minimo_setup", _SCORE_MIN_TETO)), _SCORE_MIN_TETO)
+    except (TypeError, ValueError):
+        cfg["score_minimo_setup"] = _SCORE_MIN_TETO
     _config_cache    = cfg
     _config_cache_ts = agora
     return cfg
@@ -149,32 +160,8 @@ def salvar_config_screener(cfg: dict):
     _config_cache_ts = datetime.now()
 
 
-# Cache do circuit breaker macro (BTC 24h)
-_macro_risco_cache: dict = {"bloqueado": False, "btc_24h": None, "ts": None}
-_MACRO_TTL = 300  # 5 min
-
-
-def verificar_macro_risco() -> dict:
-    """Retorna se o mercado macro esta em risco (BTC -5% em 24h). Cache de 5 min."""
-    global _macro_risco_cache
-    agora = datetime.now()
-    ts = _macro_risco_cache.get("ts")
-    if ts and (agora - ts).total_seconds() < _MACRO_TTL:
-        return _macro_risco_cache
-    try:
-        import json as _json
-        ticker = requests.get(
-            f"{BINANCE_BASE}/ticker/24hr",
-            params={"symbol": "BTCUSDT"},
-            headers=_HEADERS, timeout=5
-        ).json()
-        btc_24h = float(ticker.get("priceChangePercent", 0))
-        limiar = carregar_config_screener().get("circuit_breaker_pct", -7.0)
-        bloqueado = btc_24h <= limiar
-    except Exception:
-        btc_24h, bloqueado = None, False
-    _macro_risco_cache = {"bloqueado": bloqueado, "btc_24h": btc_24h, "ts": agora}
-    return _macro_risco_cache
+# (removido na auditoria: verificar_macro_risco() — função nunca era chamada.
+#  O circuit breaker macro efetivo é calculado em rodar_screener via btc_data.)
 
 
 # ─────────────────────────── CACHES ───────────────────────────
@@ -817,6 +804,9 @@ def analisar_par(symbol: str, interval: str = "1h",
     # ── ATR Expansion — volatilidade em expansão = bom timing de entrada
     atr_atual  = calcular_atr(highs[-20:], lows[-20:], closes[-20:], periodo=7)
     atr_base   = calcular_atr(highs[-50:-20], lows[-50:-20], closes[-50:-20], periodo=14)
+    # ATR% (ATR14 / preço) — usado para dimensionar stop/alvos/trailing por moeda
+    _atr14  = calcular_atr(highs, lows, closes, periodo=14)
+    atr_pct = round(_atr14 / closes[-1] * 100, 3) if closes[-1] > 0 else None
     atr_expansao = False
     if atr_base > 0 and atr_atual > 0:
         atr_ratio = round(atr_atual / atr_base, 2)
@@ -1029,17 +1019,18 @@ def analisar_par(symbol: str, interval: str = "1h",
         base["sinais"].append("🚨 CIRCUIT BREAKER: BTC -5% em 24h")
 
     # ── Score mínimo dinâmico por contexto de mercado ─────────────────────
-    # Em mercados ruins exige sinal mais forte para entrar
+    # MODO AGRESSIVO (recalibração): antes o medo extremo somava +2 e o BTC
+    # abaixo da EMA50(4H) somava +1 AO MESMO TEMPO que já penalizavam o score
+    # de cada moeda (efeito duplo) — tornando setups quase impossíveis em queda.
+    # Esses dois bumps foram removidos; mantida só a dominância como leve
+    # desvantagem. A penalização por moeda (no próprio score) continua ativa,
+    # então o risco de mercado ruim ainda está codificado — sem punir 2x.
     score_minimo_efetivo = cfg["score_minimo_setup"]
     btc_dom = get_btc_dominance()
-    if fg_value is not None and fg_value <= 25:
-        score_minimo_efetivo += 2   # Medo extremo: exige score muito alto
     if btc_dom is not None and btc_dom > 55:
-        score_minimo_efetivo += 1   # Alta dominância BTC: altcoins em desvantagem
-    if btc_4h_tendencia == "abaixo_ema50" and symbol != "BTCUSDT":
-        score_minimo_efetivo += 1   # BTC em tendência macro negativa: exige mais força
+        score_minimo_efetivo += 1   # Alta dominância BTC: altcoins em leve desvantagem
 
-    # ── Volume bloqueio duro ───────────────────────────────────────────────
+    # ── Volume bloqueio duro (proteção mantida) ────────────────────────────
     # Se volume < 55% da média E não há anomalia estatística → bloqueia entrada
     volume_insuficiente = (ratio_vol < 0.55 and vol_zscore < 1.5)
     if volume_insuficiente:
@@ -1047,8 +1038,8 @@ def analisar_par(symbol: str, interval: str = "1h",
 
     setup_completo = (
         not macro_bloqueado and
-        not volume_insuficiente and            # NOVO: volume mínimo obrigatório
-        base["score"] >= score_minimo_efetivo and  # NOVO: threshold dinâmico
+        not volume_insuficiente and            # volume mínimo obrigatório
+        base["score"] >= score_minimo_efetivo and
         criterios_ativos >= cfg["criterios_minimos_setup"] and
         base["rsi"] < cfg["rsi_maximo_setup"] and
         closes[-1] > base["ema50"] and
@@ -1058,6 +1049,52 @@ def analisar_par(symbol: str, interval: str = "1h",
         tendencia_diaria != "baixa" and        # não comprar contra tendência 1D
         ema_distancia_pct <= 8.0               # não comprar esticado (>8% do EMA50)
     )
+
+    # ── Caminho SNIPER: dip-buy inteligente durante queda do BTC ───────────
+    # Quando o BTC cai mas a moeda segura firme com volume (força institucional),
+    # qualifica como setup por conta própria — MESMO com btc_risco — desde que:
+    #   • a moeda esteja estruturalmente OK (acima da própria EMA50),
+    #   • não haja crash macro (-5%/24h) nem volume insuficiente,
+    #   • RSI não sobrecomprado e não seja Meme.
+    # É a entrada de maior probabilidade em queda; opera onde o setup normal não vai.
+    sniper_setup = (
+        sniper_mode and
+        not macro_bloqueado and
+        not volume_insuficiente and
+        closes[-1] > base["ema50"] and
+        base["rsi"] < cfg["rsi_maximo_quase"] and   # < 62
+        setor_atual != "Meme" and
+        criterios_ativos >= 1                        # agressivo: 1 confirmação
+    )
+    if sniper_setup and not setup_completo:
+        base["sinais"].append("🎯 SNIPER SETUP (força relativa na queda)")
+
+    # ── Caminho REVERSÃO / DIP-BUY: opera ABAIXO da EMA50 durante quedas ────
+    # Compra o fundo COM evidência — exige confluência de ≥2 sinais de reversão,
+    # não compra no escuro. NÃO exige preço > EMA50 nem diária de alta (é para
+    # operar na queda). Proteções mantidas: sem crash macro, volume ok, não Meme,
+    # RSI na zona de compra. O piso de score no registro barra 'faca caindo'.
+    sinais_reversao = sum([
+        divergencia == "bullish",
+        bb_sinal == "toque_inf",
+        ob_imbalance is not None and ob_imbalance > cfg["ob_threshold"],
+        forca_relativa is not None and forca_relativa > 0,
+        sniper_mode,
+        vol_zscore > 2.0,
+        padrao_vela in ("hammer", "engulfing"),
+    ])
+    reversao_setup = (
+        not macro_bloqueado and
+        not volume_insuficiente and
+        setor_atual != "Meme" and
+        base["rsi"] < 50 and
+        sinais_reversao >= 2
+    )
+    if reversao_setup and not setup_completo and not sniper_setup:
+        base["sinais"].append(f"🔄 REVERSÃO/DIP-BUY ({sinais_reversao} sinais de fundo)")
+
+    setup_completo = setup_completo or sniper_setup or reversao_setup
+
     quase_setup = (
         not setup_completo and
         base["score"] >= cfg["score_minimo_quase"] and
@@ -1099,6 +1136,7 @@ def analisar_par(symbol: str, interval: str = "1h",
         "vwap":             fmt(vwap) if vwap else None,
         "preco_acima_vwap": preco_acima_vwap,
         "atr_expansao":     atr_expansao,
+        "atr_pct":          atr_pct,
         "rsi_recovery":     rsi_recovery,
         "padrao_vela":      padrao_vela,
         "ema_spread_pct":   base.get("ema_spread_pct", 0),
@@ -1113,6 +1151,8 @@ def analisar_par(symbol: str, interval: str = "1h",
         "ema_distancia_pct":     ema_distancia_pct,
         "volume_confirmado":     volume_confirmado,
         "sniper_mode":           sniper_mode,
+        "sniper_setup":          sniper_setup,
+        "reversao_setup":        reversao_setup,
         "ls_ratio":              ls_ratio,
         "ls_sinal":              ls_sinal,
         "btc_4h_tendencia":      btc_4h_tendencia,
@@ -1168,7 +1208,7 @@ def analisar_risco_posicao(symbol: str, preco_entrada: float, interval: str = "1
         alertas.append("🟡 EMA9 abaixo da EMA21 — tendência enfraquecendo")
         score_risco += 1
 
-    # 4 — Preço perdendo EMA50    # 4 — Preço perdendo EMA50
+    # 4 — Preço perdendo EMA50
     if closes[-1] < ema50:
         alertas.append("🔴 Preço abaixo da EMA50 — suporte perdido")
         score_risco += 2
