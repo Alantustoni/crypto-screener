@@ -714,48 +714,44 @@
 <!-- ══════════════════════ ABA ANALYTICS ══════════════════════ -->
 <div class="tab-content" id="aba-analytics">
 
-  <!-- Circuit breaker banner -->
-  <div id="an-cb-banner" style="display:none;padding:10px 24px;background:#1a0000;border-bottom:1px solid #6e1a1a;color:#f85149;font-size:.82rem;font-weight:600">
-    🛑 <span id="an-cb-txt">CIRCUIT BREAKER ATIVO — Novos setups bloqueados</span>
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 24px 4px;flex-wrap:wrap;gap:8px">
+    <div style="font-size:1rem;font-weight:700;color:#e6edf3">🔬 Resultados</div>
+    <button onclick="carregarAnalytics()" style="background:#21262d;border:1px solid #30363d;color:#8b949e;border-radius:8px;padding:5px 14px;cursor:pointer;font-size:.78rem">🔄 Atualizar</button>
+  </div>
+  <div id="an-status" style="color:#8b949e;font-size:.8rem;padding:0 24px 8px"><span class="spinner"></span> Carregando...</div>
+
+  <!-- Termômetro de mercado -->
+  <div id="an-mkt" style="display:none;margin:4px 24px 14px;border-radius:12px;padding:16px 20px;align-items:center;gap:16px;flex-wrap:wrap;border:1px solid #30363d">
+    <div id="an-mkt-emoji" style="font-size:2.2rem">—</div>
+    <div>
+      <div style="font-size:.72rem;color:#8b949e;text-transform:uppercase;letter-spacing:.05em">Mercado está bom pra operar?</div>
+      <div id="an-mkt-label" style="font-size:1.4rem;font-weight:800">—</div>
+      <div id="an-mkt-motivo" style="font-size:.76rem;color:#8b949e">—</div>
+    </div>
   </div>
 
-  <!-- Cards de resumo -->
-  <div class="hist-stats" id="an-stats" style="display:none">
-    <div class="hist-card"><div class="hl">Profit Factor</div><div class="hv" id="an-pf">—</div><div class="hsub">meta: &gt; 1.5</div></div>
-    <div class="hist-card"><div class="hl">P&amp;L Total</div><div class="hv" id="an-pl">—</div><div class="hsub" id="an-pl-sub">operações fechadas</div></div>
-    <div class="hist-card"><div class="hl">Drawdown Máx</div><div class="hv red" id="an-dd">—</div><div class="hsub">queda do pico</div></div>
-    <div class="hist-card"><div class="hl">Risco Aberto</div><div class="hv orange" id="an-risco">—</div><div class="hsub">se todos os stops baterem</div></div>
+  <!-- Cards principais -->
+  <div class="hist-stats" id="an-cards" style="display:none">
+    <div class="hist-card"><div class="hl">Setups completos</div><div class="hv orange" id="an-r-total">—</div><div class="hsub" id="an-r-total-sub">—</div></div>
+    <div class="hist-card"><div class="hl">✅ Deram lucro</div><div class="hv green" id="an-r-lucro">—</div><div class="hsub">fechados no verde</div></div>
+    <div class="hist-card"><div class="hl">❌ Deram prejuízo</div><div class="hv red" id="an-r-prej">—</div><div class="hsub">fechados no vermelho</div></div>
+    <div class="hist-card"><div class="hl">% de acerto</div><div class="hv" id="an-r-wr">—</div><div class="hsub" id="an-r-wr-sub">dos fechados</div></div>
+    <div class="hist-card"><div class="hl">Resultado total</div><div class="hv" id="an-r-pl">—</div><div class="hsub">com taxa descontada</div></div>
+    <div class="hist-card"><div class="hl">Profit Factor</div><div class="hv" id="an-r-pf">—</div><div class="hsub" id="an-r-pf-sub">quanto ganha p/ $1 perdido</div></div>
   </div>
 
-  <div style="padding:16px 24px 24px;display:grid;grid-template-columns:1fr 1fr;gap:16px" id="an-body">
-
-    <!-- EV por Score -->
-    <div style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px">
-      <div style="font-size:.78rem;color:#8b949e;margin-bottom:12px;font-weight:600">📊 Resultado Esperado (EV) por Score</div>
-      <div id="an-ev-table" style="font-size:.78rem">
-        <div style="color:#555">Sem dados ainda — execute scans e aguarde os resultados de 8h/24h.</div>
-      </div>
+  <!-- Desempenho por tipo -->
+  <div id="an-tipo" style="display:none;margin:4px 24px 16px;background:#161b22;border:1px solid #30363d;border-radius:10px;padding:14px 18px">
+    <div style="font-size:.74rem;color:#8b949e;font-weight:600;margin-bottom:10px">Desempenho por tipo de entrada</div>
+    <div style="display:flex;gap:24px;flex-wrap:wrap;font-size:.82rem">
+      <div>📊 <strong style="color:#e6edf3">Normal</strong>: <span id="an-tipo-normal" style="color:#8b949e">—</span></div>
+      <div>🔄 <strong style="color:#e6edf3">Dip-buy</strong>: <span id="an-tipo-dip" style="color:#8b949e">—</span></div>
     </div>
-
-    <!-- Análise por hora -->
-    <div style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px">
-      <div style="font-size:.78rem;color:#8b949e;margin-bottom:12px;font-weight:600">🕐 Win Rate por Hora de Entrada</div>
-      <canvas id="an-hora-chart" height="160"></canvas>
-      <div id="an-hora-empty" style="color:#555;font-size:.78rem">Sem dados ainda.</div>
-    </div>
-
-    <!-- P&L acumulado -->
-    <div style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;grid-column:1/-1">
-      <div style="font-size:.78rem;color:#8b949e;margin-bottom:12px;font-weight:600">📈 P&amp;L Acumulado</div>
-      <canvas id="an-pl-chart" height="80"></canvas>
-      <div id="an-pl-empty" style="color:#555;font-size:.78rem">Sem dados ainda.</div>
-    </div>
-
   </div>
 
-  <div class="empty-state" id="an-empty" style="display:flex">
+  <div class="empty-state" id="an-empty" style="display:none">
     <div class="icon">🔬</div>
-    <p>Nenhum dado fechado ainda.<br>Aguarde os checkpoints de 8h/24h das suas operações.</p>
+    <p>Nenhum setup fechado ainda.<br>Aguarde os primeiros resultados chegarem.</p>
   </div>
 
 </div>
@@ -1879,6 +1875,89 @@
   let _anHoraChart=null, _anPlChart=null;
 
   async function carregarAnalytics(){
+    const st=document.getElementById('an-status');
+    if(st) st.innerHTML='<span class="spinner"></span> Carregando...';
+    try{
+      const res=await fetch('/api/analytics');
+      const d=await res.json();
+      const r=d.resumo||{};
+
+      // Termômetro de mercado
+      const mkt=r.mercado||{};
+      const mktBox=document.getElementById('an-mkt');
+      if(mktBox && mkt.label){
+        const bom=mkt.label==='BOM', ruim=mkt.label==='RUIM';
+        const cor=bom?'#3fb950':ruim?'#f85149':'#f0883e';
+        mktBox.style.display='flex';
+        mktBox.style.background=(bom?'#0d1a10':ruim?'#1a0d0d':'#1a1509');
+        mktBox.style.borderColor=cor+'55';
+        document.getElementById('an-mkt-emoji').textContent=(bom?'🟢':ruim?'🔴':'🟡');
+        const lab=document.getElementById('an-mkt-label');
+        lab.textContent=(bom?'SIM':ruim?'NÃO':'CAUTELA')+' — '+mkt.label;
+        lab.style.color=cor;
+        let ctx=[];
+        if(mkt.fg!=null) ctx.push('F&G '+mkt.fg);
+        if(mkt.btc_4h) ctx.push('BTC 4H '+(mkt.btc_4h==='acima_ema50'?'↑':'↓'));
+        document.getElementById('an-mkt-motivo').textContent=(mkt.motivo||'')+(ctx.length?'  ('+ctx.join(' · ')+')':'');
+      }
+
+      const cards=document.getElementById('an-cards');
+      const empty=document.getElementById('an-empty');
+      const tipoBox=document.getElementById('an-tipo');
+      const set=(id,v)=>{const e=document.getElementById(id); if(e) e.textContent=v;};
+
+      if(!r.fechados){
+        if(cards) cards.style.display='none';
+        if(tipoBox) tipoBox.style.display='none';
+        if(empty) empty.style.display='flex';
+        if(st) st.textContent='';
+        return;
+      }
+      if(cards) cards.style.display='flex';
+      if(empty) empty.style.display='none';
+
+      set('an-r-total', (r.setups_total??0));
+      set('an-r-total-sub', (r.abertas||0)+' abertas · '+(r.fechados||0)+' fechadas');
+      set('an-r-lucro', r.lucro??0);
+      set('an-r-prej', r.prejuizo??0);
+
+      const wrEl=document.getElementById('an-r-wr');
+      if(wrEl){
+        wrEl.textContent=(r.win_rate!=null?r.win_rate+'%':'—');
+        wrEl.className='hv '+(r.win_rate==null?'neutral':r.win_rate>=55?'green':r.win_rate>=40?'orange':'red');
+      }
+      set('an-r-wr-sub', (r.lucro||0)+' de '+(r.fechados||0));
+
+      const plEl=document.getElementById('an-r-pl');
+      if(plEl){
+        const pl=r.pl_total||0;
+        plEl.textContent=(pl>=0?'+':'')+'$'+Math.abs(pl).toFixed(2);
+        plEl.className='hv '+(pl>0?'green':pl<0?'red':'neutral');
+      }
+
+      const pfEl=document.getElementById('an-r-pf');
+      if(pfEl){
+        const pf=r.profit_factor;
+        pfEl.textContent=(pf!=null?pf:'—');
+        pfEl.className='hv '+(pf==null?'neutral':pf>=1.5?'green':pf>=1?'orange':'red');
+        set('an-r-pf-sub', (pf!=null?('ganha $'+pf+' p/ $1 perdido'):'quanto ganha p/ $1 perdido'));
+      }
+
+      // Desempenho por tipo (normal x dip-buy)
+      const t=r.por_tipo||{};
+      const fmtTipo=o=>(o&&o.fechados)?((o.win_rate!=null?o.win_rate+'% acerto':'—')+' ('+o.lucro+'/'+o.fechados+')'):'sem fechados';
+      set('an-tipo-normal', fmtTipo(t.normal));
+      set('an-tipo-dip', fmtTipo(t.dip));
+      if(tipoBox) tipoBox.style.display='block';
+
+      if(st) st.textContent='';
+    }catch(e){
+      console.error('Erro analytics:',e);
+      if(st) st.textContent='❌ Erro ao carregar.';
+    }
+  }
+
+  async function _carregarAnalytics_legacy(){
     document.getElementById('an-empty').style.display='none';
     try{
       const res=await fetch('/api/analytics');

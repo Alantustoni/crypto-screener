@@ -531,6 +531,59 @@ def api_analytics():
     risco_aberto = sum(posicao_de(h) * SL / 100 for h in abertas)
     cb_ativo = (capital > 0) and (acum < 0) and (abs(acum) / capital * 100 > 5.0)
 
+    # ── RESUMO SIMPLIFICADO (aba Analytics enxuta) ───────────────────────
+    setups_total = sum(1 for h in historico_data if h.get("setup_completo"))
+    n_fech    = len(fechados)
+    n_lucro   = sum(1 for f in fechados if f["pl"] > 0)
+    n_prej    = n_fech - n_lucro
+    win_rate_r = round(n_lucro / n_fech * 100) if n_fech else None
+
+    # Desempenho por tipo: normal x dip-buy (sniper/reversão)
+    tipo = {"normal": {"fechados": 0, "lucro": 0}, "dip": {"fechados": 0, "lucro": 0}}
+    for f in fechados:
+        k = "dip" if (f["h"].get("sniper_setup") or f["h"].get("reversao_setup")) else "normal"
+        tipo[k]["fechados"] += 1
+        if f["pl"] > 0:
+            tipo[k]["lucro"] += 1
+    for k in tipo:
+        t = tipo[k]
+        t["win_rate"] = round(t["lucro"] / t["fechados"] * 100) if t["fechados"] else None
+
+    # Termômetro de mercado (BOM / CAUTELA / RUIM)
+    try:
+        fg  = (get_fear_greed() or {}).get("value")
+        dom = get_btc_dominance()
+        b4h = get_btc_4h_tendencia()
+    except Exception:
+        fg = dom = b4h = None
+    if cb_ativo or b4h == "abaixo_ema50" or (fg is not None and fg <= 15):
+        mkt_label, mkt_bom = "RUIM", False
+        mkt_motivo = ("Circuit breaker ativo" if cb_ativo
+                      else "BTC abaixo da EMA50 no 4H" if b4h == "abaixo_ema50"
+                      else "Pânico extremo no mercado")
+    elif b4h == "acima_ema50" and (fg is None or fg > 30) and (dom is None or dom <= 60):
+        mkt_label, mkt_bom = "BOM", True
+        mkt_motivo = "BTC firme e sentimento saudável"
+    else:
+        mkt_label, mkt_bom = "CAUTELA", False
+        mkt_motivo = ("Medo extremo, mas BTC estruturalmente ok"
+                      if (fg is not None and fg <= 25 and b4h == "acima_ema50")
+                      else "Sinais mistos — opere com cuidado")
+
+    resumo = {
+        "setups_total":  setups_total,
+        "fechados":      n_fech,
+        "abertas":       len(abertas),
+        "lucro":         n_lucro,
+        "prejuizo":      n_prej,
+        "win_rate":      win_rate_r,
+        "profit_factor": profit_factor,
+        "pl_total":      round(acum, 2),
+        "por_tipo":      tipo,
+        "mercado":       {"bom": mkt_bom, "label": mkt_label, "motivo": mkt_motivo,
+                          "fg": fg, "btc_4h": b4h, "btc_dom": dom},
+    }
+
     return {
         "total_fechados":        len(fechados),
         "ganhos_total":          round(ganhos, 2),
@@ -543,6 +596,7 @@ def api_analytics():
         "ev_por_score":          ev_por_score,
         "por_hora":              por_hora,
         "pl_acumulado":          pl_acumulado,
+        "resumo":                resumo,
     }
 
 
