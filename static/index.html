@@ -13,25 +13,23 @@
     header h1{font-size:1.05rem;font-weight:800;color:#f0883e;letter-spacing:-.3px;white-space:nowrap}
     header p{font-size:.72rem;color:#8b949e;white-space:nowrap}
 
-    /* ── MARCA 2A Crypto (centralizada, pulsando) ── */
+    /* ── MARCA 2A CRYPTO (logo centralizada) ── */
     .brand2a{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
-      display:flex;align-items:center;gap:7px;pointer-events:none;z-index:1;white-space:nowrap;
-      animation:b2aFloat 3s ease-in-out infinite}
-    .b2a-badge{font-size:1.15rem;font-weight:900;letter-spacing:-.5px;line-height:1;
-      padding:3px 9px;border-radius:9px;color:#0a0c10;
-      background:linear-gradient(135deg,#f0883e 0%,#ffbe73 100%);
-      box-shadow:0 0 10px rgba(240,136,62,.5);
-      animation:b2aPulse 2s ease-in-out infinite}
-    .b2a-word{font-size:1.2rem;font-weight:800;letter-spacing:.6px;line-height:1;
-      background:linear-gradient(90deg,#f0883e,#3fb950,#f0883e);
-      background-size:200% auto;-webkit-background-clip:text;background-clip:text;color:transparent;
-      animation:b2aShine 4s linear infinite}
-    .b2a-spark{font-size:.8rem;animation:b2aPulse 2s ease-in-out infinite}
-    @keyframes b2aPulse{0%,100%{box-shadow:0 0 8px rgba(240,136,62,.45);transform:scale(1)}
-      50%{box-shadow:0 0 20px rgba(240,136,62,.95),0 0 34px rgba(240,136,62,.35);transform:scale(1.07)}}
-    @keyframes b2aShine{to{background-position:200% center}}
-    @keyframes b2aFloat{0%,100%{transform:translate(-50%,-50%)}50%{transform:translate(-50%,-54%)}}
-    @media(max-width:768px){.brand2a{gap:5px}.b2a-badge{font-size:1rem;padding:2px 7px}.b2a-word{font-size:1rem}.b2a-spark{display:none}}
+      display:flex;align-items:center;gap:8px;pointer-events:none;z-index:1;white-space:nowrap}
+    .b2a-ico{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:10px;
+      background:radial-gradient(circle at 30% 25%,#20283a,#0a0c10);border:1px solid #2a3140;
+      animation:b2aGlow 2.6s ease-in-out infinite}
+    .b2a-2a{font-size:1.28rem;font-weight:900;letter-spacing:-.5px;line-height:1;
+      background:linear-gradient(135deg,#ffce8f,#f0883e);-webkit-background-clip:text;background-clip:text;color:transparent;
+      filter:drop-shadow(0 0 6px rgba(240,136,62,.55));animation:b2aBeat 2s ease-in-out infinite}
+    .b2a-word{font-size:1rem;font-weight:700;letter-spacing:3px;line-height:1;color:#c9d1d9}
+    .b2a-live{width:7px;height:7px;border-radius:50%;background:#3fb950;box-shadow:0 0 9px #3fb950;
+      align-self:flex-start;margin-top:2px;animation:b2aLive 1.4s ease-in-out infinite}
+    @keyframes b2aBeat{0%,100%{filter:drop-shadow(0 0 5px rgba(240,136,62,.4));transform:scale(1)}
+      50%{filter:drop-shadow(0 0 14px rgba(240,136,62,.9));transform:scale(1.05)}}
+    @keyframes b2aGlow{0%,100%{box-shadow:0 0 10px rgba(240,136,62,.18)}50%{box-shadow:0 0 22px rgba(240,136,62,.5)}}
+    @keyframes b2aLive{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.65)}}
+    @media(max-width:768px){.brand2a{gap:6px}.b2a-ico{width:28px;height:28px}.b2a-2a{font-size:1.05rem}.b2a-word{font-size:.82rem;letter-spacing:2px}}
     .taxa-brl{font-size:.72rem;background:#0a0c10;border:1px solid #1e2330;border-radius:20px;padding:4px 10px;color:#8b949e;white-space:nowrap}
     .taxa-brl strong{color:#3fb950}
     .controls{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-left:auto}
@@ -315,9 +313,19 @@
 
 <header>
   <div class="brand2a" title="2A Crypto">
-    <span class="b2a-badge">2A</span>
-    <span class="b2a-word">Crypto</span>
-    <span class="b2a-spark">📈</span>
+    <span class="b2a-ico">
+      <svg viewBox="0 0 28 28" width="22" height="22" aria-hidden="true">
+        <line x1="5"  y1="8" x2="5"  y2="22" stroke="#3fb950" stroke-width="1.6" stroke-linecap="round"/>
+        <rect x="3"  y="13" width="4" height="7" rx="1.2" fill="#3fb950"/>
+        <line x1="14" y1="5" x2="14" y2="21" stroke="#f0883e" stroke-width="1.6" stroke-linecap="round"/>
+        <rect x="12" y="10" width="4" height="8" rx="1.2" fill="#f0883e"/>
+        <line x1="23" y1="3" x2="23" y2="19" stroke="#3fb950" stroke-width="1.6" stroke-linecap="round"/>
+        <rect x="21" y="7" width="4" height="9" rx="1.2" fill="#3fb950"/>
+      </svg>
+    </span>
+    <span class="b2a-2a">2A</span>
+    <span class="b2a-word">CRYPTO</span>
+    <span class="b2a-live"></span>
   </div>
   <div class="taxa-brl" id="taxa-display">💵 —</div>
   <div class="controls">
