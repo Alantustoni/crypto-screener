@@ -48,6 +48,29 @@ def niveis_saida(atr_pct) -> dict:
     }
 
 
+# ── Dimensionamento por RISCO fixo (volatilidade-normalizado) ────────────────
+RISCO_POR_TRADE_PCT = 1.0    # % do capital arriscado por trade (dial de agressividade)
+POS_MAX_PCT         = 20.0   # teto: a posição nunca passa de X% do capital
+
+
+def posicao_risco(h: dict, capital: float, risco_pct: float = RISCO_POR_TRADE_PCT) -> float:
+    """
+    Tamanho da posição por RISCO fixo: arrisca `risco_pct`% do capital em cada
+    trade, e o tamanho sai do stop (ATR) do sinal → posição = risco$ / stop%.
+    Assim moeda volátil (stop largo) ganha posição menor e moeda calma (stop
+    apertado) ganha maior — todo trade arrisca o mesmo $. Teto de POS_MAX_PCT.
+    """
+    if not capital or capital <= 0:
+        return 0.0
+    stop = abs(h.get("exit_sl") or STOP_LOSS_PCT)
+    if stop <= 0:
+        stop = STOP_LOSS_PCT
+    risco_usd = capital * (max(risco_pct, 0.0) / 100.0)
+    pos = risco_usd / (stop / 100.0)
+    teto = capital * (POS_MAX_PCT / 100.0)
+    return round(min(pos, teto), 2)
+
+
 def calcular_posicao(score, base_valor: float, capital: float) -> float:
     """
     Tamanho da posição em USD a partir do score.

@@ -44,6 +44,32 @@ class TestTradingMath(unittest.TestCase):
     def test_posicao_score_none_usa_default(self):
         self.assertEqual(tm.calcular_posicao(None, 20, 1000), 20)
 
+
+class TestPosicaoRisco(unittest.TestCase):
+    def test_risco_normaliza_pela_volatilidade(self):
+        # capital 1000, risco 1% = $10. stop 5% → pos = 10/0.05 = 200
+        self.assertEqual(tm.posicao_risco({"exit_sl": 5.0}, 1000, 1.0), 200.0)
+        # stop 2.5% → 10/0.025 = 400, mas teto 20% = 200 → capado em 200
+        self.assertEqual(tm.posicao_risco({"exit_sl": 2.5}, 1000, 1.0), 200.0)
+        # stop 6% → 10/0.06 = 166.67 (abaixo do teto)
+        self.assertAlmostEqual(tm.posicao_risco({"exit_sl": 6.0}, 1000, 1.0), 166.67, places=2)
+
+    def test_risco_escala_com_capital_e_pct(self):
+        # stop 15%, capital 1000 (teto de $200 não interfere) → dobrar o risco dobra a posição
+        self.assertAlmostEqual(tm.posicao_risco({"exit_sl": 15.0}, 1000, 1.0), 66.67, places=2)
+        self.assertAlmostEqual(tm.posicao_risco({"exit_sl": 15.0}, 1000, 2.0), 133.33, places=2)
+
+    def test_risco_teto_20pct(self):
+        # capital 200, risco 2%, stop 5% → 4/0.05 = 80, mas teto 20% = 40 → capado
+        self.assertEqual(tm.posicao_risco({"exit_sl": 5.0}, 200, 2.0), 40.0)
+
+    def test_risco_sem_exit_sl_usa_stop_default(self):
+        # sem exit_sl → usa STOP_LOSS_PCT=3. cap 1000, risco 1% → 10/0.03=333.3, teto 200
+        self.assertEqual(tm.posicao_risco({}, 1000, 1.0), 200.0)
+
+    def test_risco_capital_zero(self):
+        self.assertEqual(tm.posicao_risco({"exit_sl": 3.0}, 0, 1.0), 0.0)
+
     def test_pl_stop(self):
         h = {"stop_automatico": True, "stop_automatico_pct": -3.0}
         self.assertAlmostEqual(tm.pl_simulado(h, 20, custo_rt_pct=0.0), -0.6)

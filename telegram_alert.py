@@ -3,7 +3,7 @@ import os
 import requests
 from datetime import datetime, timedelta
 from pathlib import Path
-from trading_math import calcular_posicao, pl_simulado, niveis_saida
+from trading_math import calcular_posicao, pl_simulado, niveis_saida, posicao_risco
 
 # Arquivos de estado ficam em DATA_DIR (Railway volume) para persistir entre redeploys.
 _PROJ_DIR    = Path(__file__).parent
@@ -96,8 +96,8 @@ def checar_e_alertar(resultados):
     if not token or not chat_id or "SEU_TOKEN" in token:
         return []
 
-    base_valor = float(config.get("base_valor_trade", 20))
-    capital    = float(config.get("capital_total", 200))
+    capital = float(config.get("capital_total", 200))
+    risco   = float(config.get("risco_por_trade_pct", 1.0))
     agora      = datetime.now()
     enviados   = []
 
@@ -131,8 +131,7 @@ def checar_e_alertar(resultados):
         sl_preco  = round(preco * (1 - sl_pct  / 100), 6)
         tp1_preco = round(preco * (1 + tp1_pct / 100), 6)
         tp2_preco = round(preco * (1 + tp2_pct / 100), 6)
-        posicao   = _calcular_posicao(r["score"], base_valor, capital)
-        mult_txt  = "2x" if r["score"] >= 10 else "1.5x" if r["score"] >= 9 else "1x"
+        posicao   = posicao_risco({"exit_sl": _niv["exit_sl"]}, capital, risco)
         perda_max = round(posicao * sl_pct  / 100, 2)
         lucro_tp1 = round(posicao * tp1_pct / 100 * 0.5, 2)
         lucro_tp2 = round(posicao * tp2_pct / 100 * 0.5, 2)
@@ -147,7 +146,7 @@ def checar_e_alertar(resultados):
             "Score: {}  |  RSI: {}  |  Criterios: {}/10{}\n"
             "------------------------------\n"
             "Entrada:  ${}\n"
-            "Posicao:  ${} ({} = score {})\n\n"
+            "Posicao:  ${} (score {} · risco {:.1f}%)\n\n"
             "Stop Loss:          ${} (-{}%)  -> -${}\n"
             "Alvo 1 (vende 50%): ${} (+{}%) -> +${}\n"
             "Alvo 2 (vende 50%): ${} (+{}%) -> +${}\n"
@@ -156,7 +155,7 @@ def checar_e_alertar(resultados):
         ).format(
             nome, setor_txt,
             r["score"], r.get("rsi", "—"), r.get("criterios_ativos", 0), wr_txt,
-            preco, round(posicao, 2), mult_txt, r["score"],
+            preco, round(posicao, 2), r["score"], risco,
             sl_preco, sl_pct, perda_max,
             tp1_preco, tp1_pct, lucro_tp1,
             tp2_preco, tp2_pct, lucro_tp1 + lucro_tp2,
@@ -185,11 +184,11 @@ def enviar_fechamento(sinal, pct, preco_atual, tipo):
     if not token or not chat_id or "SEU_TOKEN" in token:
         return False
 
-    base_valor = float(config.get("base_valor_trade", 20))
-    capital    = float(config.get("capital_total", 200))
+    capital = float(config.get("capital_total", 200))
+    risco   = float(config.get("risco_por_trade_pct", 1.0))
     nome       = sinal["symbol"].replace("USDT", "")
     entrada    = float(sinal["preco_entrada"])
-    posicao    = _calcular_posicao(sinal.get("score", 8), base_valor, capital)
+    posicao    = posicao_risco(sinal, capital, risco)
     pl         = _pl_simulado(sinal, posicao)
     pl_val     = abs(pl) if pl is not None else abs(pct) / 100 * posicao
     taxa       = _taxa_brl()
@@ -251,11 +250,11 @@ def enviar_resumo_posicoes(historico):
     if not token or not chat_id or "SEU_TOKEN" in token:
         return False
 
-    base_valor = float(config.get("base_valor_trade", 20))
-    capital    = float(config.get("capital_total", 200))
+    capital = float(config.get("capital_total", 200))
+    risco   = float(config.get("risco_por_trade_pct", 1.0))
 
     def posicao_de(h):
-        return calcular_posicao(h.get("score", 8), base_valor, capital)
+        return posicao_risco(h, capital, risco)
 
     abertas = []; lucro_ops = []; prej_ops = []
 
@@ -329,11 +328,11 @@ def enviar_relatorio_diario(historico):
     if not token or not chat_id or "SEU_TOKEN" in token:
         return False
 
-    base_valor = float(config.get("base_valor_trade", 20))
-    capital    = float(config.get("capital_total", 200))
+    capital = float(config.get("capital_total", 200))
+    risco   = float(config.get("risco_por_trade_pct", 1.0))
 
     def posicao_de(h):
-        return calcular_posicao(h.get("score", 8), base_valor, capital)
+        return posicao_risco(h, capital, risco)
 
     abertas = []; fechadas = []
     for h in historico:
@@ -434,8 +433,8 @@ def processar_comandos(historico):
     if not token or not chat_id or "SEU_TOKEN" in token:
         return
 
-    base_valor = float(config.get("base_valor_trade", 20))
-    capital    = float(config.get("capital_total", 200))
+    capital = float(config.get("capital_total", 200))
+    risco   = float(config.get("risco_por_trade_pct", 1.0))
 
     offset = _carregar_offset()
 
@@ -480,13 +479,13 @@ def processar_comandos(historico):
                     resposta = "❌ Erro ao gravar tela_msg.json — verifique DATA_DIR"
         elif contem("/posicoes", "posicoes", "/aberto", "aberto", "/status", "status",
                   "abertas", "em aberto", "open"):
-            resposta = _cmd_posicoes(historico, base_valor, capital)
+            resposta = _cmd_posicoes(historico, capital, risco)
         elif contem("/prejuizo", "prejuizo", "perdas", "perdi", "perdeu", "negativos",
                     "quais perderam", "deram prejuizo"):
-            resposta = _cmd_prejuizo(historico, base_valor, capital)
+            resposta = _cmd_prejuizo(historico, capital, risco)
         elif contem("/resultado", "resultado", "/pl", "/lucro", "lucro", "geral",
                     "quanto ganhei", "quanto lucrei", "como estou", "como esta"):
-            resposta = _cmd_resultado(historico, base_valor, capital)
+            resposta = _cmd_resultado(historico, capital, risco)
         elif contem("/ajuda", "ajuda", "/help", "help", "/comandos", "comandos", "o que voce faz"):
             resposta = _cmd_ajuda()
         else:
@@ -504,9 +503,9 @@ def processar_comandos(historico):
     _salvar_offset(offset)
 
 
-def _cmd_posicoes(historico, base_valor, capital):
+def _cmd_posicoes(historico, capital, risco):
     def posicao_de(h):
-        return calcular_posicao(h.get("score", 8), base_valor, capital)
+        return posicao_risco(h, capital, risco)
 
     abertas = [
         h for h in historico
@@ -544,9 +543,9 @@ def _cmd_posicoes(historico, base_valor, capital):
     return "\n".join(linhas)
 
 
-def _cmd_resultado(historico, base_valor, capital):
+def _cmd_resultado(historico, capital, risco):
     def posicao_de(h):
-        return calcular_posicao(h.get("score", 8), base_valor, capital)
+        return posicao_risco(h, capital, risco)
 
     fechadas = []
     for h in historico:
@@ -591,9 +590,9 @@ def _cmd_resultado(historico, base_valor, capital):
     )
 
 
-def _cmd_prejuizo(historico, base_valor, capital):
+def _cmd_prejuizo(historico, capital, risco):
     def posicao_de(h):
-        return calcular_posicao(h.get("score", 8), base_valor, capital)
+        return posicao_risco(h, capital, risco)
 
     perdas = []
     for h in historico:

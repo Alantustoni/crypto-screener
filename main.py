@@ -19,7 +19,7 @@ from screener import rodar_screener, INTERVALOS, TOP_PAIRS, get_ticker_24h, get_
 from backtesting import backtest
 from telegram_alert import checar_e_alertar, testar_conexao, carregar_config, salvar_config, enviar_relatorio_diario, enviar_resumo_posicoes, enviar_fechamento, processar_comandos
 from signal_history import registrar_sinais, registrar_manual, verificar_resultados, obter_historico_com_stats, carregar_historico, calcular_calibracao, monitorar_stops_ativos
-from trading_math import calcular_posicao, pl_simulado
+from trading_math import calcular_posicao, pl_simulado, posicao_risco
 
 # ─── AUTH ───────────────────────────────────────────────────────────────────
 DASHBOARD_PASSWORD = os.environ.get("DASHBOARD_PASSWORD", "")
@@ -172,7 +172,7 @@ def scan(
     # Circuit breaker de portfolio: bloqueia se P&L do dia < -5% do capital
     tg_cfg = carregar_config()
     _capital = float(tg_cfg.get("capital_total", 200))
-    _base    = float(tg_cfg.get("base_valor_trade", 20))
+    _risco   = float(tg_cfg.get("risco_por_trade_pct", 1.0))
     try:
         from datetime import date as _date
         _hist = carregar_historico()
@@ -186,8 +186,7 @@ def scan(
             _r = (_h.get("resultado_8h") or _h.get("resultado_4h") or
                   _h.get("resultado_2h") or _h.get("resultado_1h"))
             if _r is not None:
-                _s   = _h.get("score", 8)
-                _pos = calcular_posicao(_s, _base, _capital)
+                _pos = posicao_risco(_h, _capital, _risco)
                 _pl_hoje += _r / 100 * _pos
         _cb_limite = _capital * 0.05
         if _capital > 0 and _pl_hoje < -_cb_limite:
@@ -344,7 +343,7 @@ def salvar_telegram(
     chat_id: str = Query(default=""),
     score_minimo: int = Query(default=3),
     capital_total: float = Query(default=-1),
-    base_valor_trade: float = Query(default=-1),
+    risco_por_trade_pct: float = Query(default=-1),
 ):
     config = carregar_config()
     config["ativo"] = ativo
@@ -352,11 +351,11 @@ def salvar_telegram(
     config["chat_id"] = chat_id
     if bot_token and "SEU_TOKEN" not in bot_token:
         config["bot_token"] = bot_token
-    # Capital e valor-base por trade (só atualiza se enviado > 0)
+    # Capital e % de risco por trade (só atualiza se enviado > 0)
     if capital_total > 0:
         config["capital_total"] = capital_total
-    if base_valor_trade > 0:
-        config["base_valor_trade"] = base_valor_trade
+    if risco_por_trade_pct > 0:
+        config["risco_por_trade_pct"] = risco_por_trade_pct
     salvar_config(config)
     return {"sucesso": True, "mensagem": "Configuracoes salvas!"}
 
@@ -466,11 +465,11 @@ def api_analytics():
     SL = 3.0; TP1 = 3.0; TP2 = 6.0
 
     tg_cfg     = carregar_config()
-    base_valor = float(tg_cfg.get("base_valor_trade", 20))
     capital    = float(tg_cfg.get("capital_total", 200))
+    risco_pct  = float(tg_cfg.get("risco_por_trade_pct", 1.0))
 
     def posicao_de(h):
-        return calcular_posicao(h.get("score", 8), base_valor, capital)
+        return posicao_risco(h, capital, risco_pct)
 
     # pl_simulado agora vem de trading_math (fonte única) — import no topo.
 
@@ -851,11 +850,11 @@ def health_check():
     historico   = carregar_historico()
     hoje_str    = str(_date.today())
     tg_cfg      = carregar_config()
-    base_valor  = float(tg_cfg.get("base_valor_trade", 20))
     capital     = float(tg_cfg.get("capital_total", 200))
+    risco_pct   = float(tg_cfg.get("risco_por_trade_pct", 1.0))
 
     def _pos(h):
-        return calcular_posicao(h.get("score", 8), base_valor, capital)
+        return posicao_risco(h, capital, risco_pct)
 
     def _fechado(h):
         return bool(h.get("stop_automatico")) or h.get("resultado_8h") is not None
