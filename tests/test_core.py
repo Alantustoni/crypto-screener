@@ -332,5 +332,78 @@ class TestTuningAgressivo(unittest.TestCase):
         self.assertEqual(len(n), 0)
 
 
+class TestBreakevenFill(unittest.TestCase):
+    """
+    O stop de breakeven é uma ordem parada na ENTRADA: quando toca, preenche em
+    ~0%, não no preço overshoot que o monitor só enxerga minutos depois. Antes,
+    uma queda rápida fechava o 'breakeven' em -2/-3% (prejuízo real rotulado
+    errado) — afundava a taxa de acerto e o P&L.
+    """
+    def setUp(self):
+        sh.salvar_historico([])
+        self._orig_ticker = sh.get_ticker_24h
+
+    def tearDown(self):
+        sh.get_ticker_24h = self._orig_ticker
+
+    def _agora_iso(self):
+        from datetime import datetime
+        return datetime.now().isoformat(timespec="seconds")
+
+    def test_breakeven_fecha_em_zero_nao_no_overshoot(self):
+        # Entrada 100, stop -4%. BE armado. Preço caiu a 98 (-2%): acima do stop
+        # cheio, mas abaixo de zero → deve fechar em 0.0%, NÃO em -2%.
+        sinal = {
+            "id": 1, "symbol": "SOLUSDT", "timestamp": self._agora_iso(),
+            "preco_entrada": 100.0, "setup_completo": True,
+            "exit_sl": 4.0, "exit_tp1": 4.0, "exit_tp2": 8.0,
+            "stop_breakeven_ativo": True,
+        }
+        sh.salvar_historico([sinal])
+        sh.get_ticker_24h = lambda *_a, **_k: {"lastPrice": "98"}
+        sh.monitorar_stops_ativos()
+
+        h = sh.carregar_historico()[0]
+        self.assertTrue(h.get("stop_automatico"))
+        self.assertEqual(h.get("stop_automatico_motivo"), "breakeven")
+        self.assertEqual(h.get("stop_automatico_pct"), 0.0,
+                         "breakeven deve registrar 0%, não o preço overshoot")
+
+    def test_stop_cheio_ainda_registra_perda_real(self):
+        # Guard-rail: se o preço fura o stop cheio (-4%), continua sendo perda real.
+        sinal = {
+            "id": 1, "symbol": "SOLUSDT", "timestamp": self._agora_iso(),
+            "preco_entrada": 100.0, "setup_completo": True,
+            "exit_sl": 4.0, "exit_tp1": 4.0, "exit_tp2": 8.0,
+            "stop_breakeven_ativo": True,
+        }
+        sh.salvar_historico([sinal])
+        sh.get_ticker_24h = lambda *_a, **_k: {"lastPrice": "95"}   # -5%
+        sh.monitorar_stops_ativos()
+
+        h = sh.carregar_historico()[0]
+        self.assertTrue(h.get("stop_automatico"))
+        self.assertLess(h.get("stop_automatico_pct"), 0,
+                        "furar o stop cheio continua sendo perda real")
+
+    def test_moonbag_breakeven_fecha_em_zero(self):
+        # Moonbag correndo cai de volta à entrada → corta em 0%, não no overshoot.
+        sinal = {
+            "id": 1, "symbol": "SOLUSDT", "timestamp": self._agora_iso(),
+            "preco_entrada": 100.0, "setup_completo": True,
+            "exit_sl": 4.0, "exit_tp1": 4.0, "exit_tp2": 8.0,
+            "moonbag_ativo": True, "pico_moonbag": 8.0,
+            "tp1_automatico": True, "tp1_automatico_pct": 4.0,
+        }
+        sh.salvar_historico([sinal])
+        sh.get_ticker_24h = lambda *_a, **_k: {"lastPrice": "97"}   # -3%
+        sh.monitorar_stops_ativos()
+
+        h = sh.carregar_historico()[0]
+        self.assertTrue(h.get("moonbag_automatico"))
+        self.assertEqual(h.get("moonbag_automatico_motivo"), "breakeven")
+        self.assertEqual(h.get("moonbag_automatico_pct"), 0.0)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

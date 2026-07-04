@@ -662,7 +662,9 @@ def monitorar_stops_ativos(stop_pct: float = STOP_LOSS_PCT,
                 if idade_h >= 24:
                     _fechar_moonbag(sinal, pct, preco_atual, motivo="timeout_24h")
                 elif pct <= 0:
-                    _fechar_moonbag(sinal, pct, preco_atual, motivo="breakeven")
+                    # Mesma correção do BE: o moonbag corta na ENTRADA (~0%), não
+                    # no preço overshoot visto minutos depois.
+                    _fechar_moonbag(sinal, 0.0, entrada, motivo="breakeven")
                 elif (pico_mb - pct) >= trail_eff * 1.5:
                     _fechar_moonbag(sinal, pct, preco_atual, motivo="trailing")
                 continue
@@ -672,7 +674,12 @@ def monitorar_stops_ativos(stop_pct: float = STOP_LOSS_PCT,
                 _fechar_stop(sinal, pct, preco_atual)
 
             elif sinal.get("stop_breakeven_ativo") and pct <= 0 and not sinal.get("tp1_automatico"):
-                _fechar_stop(sinal, pct, preco_atual, motivo="breakeven")
+                # BE é uma ordem parada na ENTRADA: preenche em ~0%, NÃO no preço
+                # overshoot que o monitor só enxerga minutos depois. Antes, uma
+                # queda rápida fazia o "breakeven" fechar em -2/-3% — prejuízo real
+                # rotulado como breakeven, afundando taxa de acerto e P&L. Agora
+                # registra 0% (taxa/slippage do pl_simulado cuidam do custo real).
+                _fechar_stop(sinal, 0.0, entrada, motivo="breakeven")
 
             # ── Runner (50%) após TP1: TP2 forma moonbag; senão trailing 50/50 ──
             elif sinal.get("tp1_automatico"):
