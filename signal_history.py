@@ -410,13 +410,15 @@ def _regime_bearish() -> bool:
 # ════════════════════════════════════════════════════════════════════════════
 
 @_com_lock
-def registrar_sinais(resultados: list, score_minimo: int = SCORE_MINIMO) -> int:
+def registrar_sinais(resultados: list, score_minimo: int = SCORE_MINIMO) -> list:
+    """Registra os setups e RETORNA a lista das entradas novas (para o alerta
+    ser 1:1 com o histórico). Lista vazia = nada registrado."""
     historico = carregar_historico()
     agora     = datetime.now()
-    novos     = 0
+    novos     = []
 
     if _circuit_breaker_sequencial_ativo(historico, agora):
-        return 0
+        return []
 
     score_minimo_efetivo = score_minimo
     if _regime_bearish():
@@ -493,7 +495,7 @@ def registrar_sinais(resultados: list, score_minimo: int = SCORE_MINIMO) -> int:
         # na entrada. Usados por monitorar_stops_ativos e pelo P&L simulado.
         entrada.update(niveis_saida(r.get("atr_pct")))
         historico.append(entrada)
-        novos += 1
+        novos.append(entrada)
 
     if novos:
         salvar_historico(historico)

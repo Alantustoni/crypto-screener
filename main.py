@@ -226,18 +226,22 @@ def scan(
     except Exception as e:
         return {"error": "Erro no screener: {}".format(e), "resultados": [], "total": 0}
 
-    alertas = []
+    # 1º REGISTRA (travas persistentes), 2º ALERTA só o que foi registrado.
+    # Assim alerta e histórico ficam 1:1 e não há rajada de alertas após restart.
+    novos_entradas = []
     try:
-        if telegram:
-            alertas = checar_e_alertar(resultados)
+        _score_min = int(carregar_config_screener().get("score_minimo_setup", 8))
+        novos_entradas = registrar_sinais(resultados, score_minimo=_score_min)
     except Exception:
         pass
+    novos_sinais = len(novos_entradas)
 
-    novos_sinais = 0
+    alertas = []
     try:
-        # Usa score_minimo_setup do config dinâmico (sincronizado com auto-calibração)
-        _score_min = int(carregar_config_screener().get("score_minimo_setup", 8))
-        novos_sinais = registrar_sinais(resultados, score_minimo=_score_min)
+        if telegram and novos_entradas:
+            _simbolos_novos = {e.get("symbol") for e in novos_entradas}
+            _res_novos = [r for r in resultados if r.get("symbol") in _simbolos_novos]
+            alertas = checar_e_alertar(_res_novos)
     except Exception:
         pass
 
@@ -961,11 +965,13 @@ async def iniciar_loops_automaticos():
         while True:
             try:
                 resultados = rodar_screener(interval="1h", top_n=50)
-                alertas = checar_e_alertar(resultados)
                 _score_min = int(carregar_config_screener().get("score_minimo_setup", 8))
+                # Registra primeiro; alerta só o que entrou de fato (1:1 com histórico)
                 novos = registrar_sinais(resultados, score_minimo=_score_min)
-                if novos > 0:
-                    total = _incrementar_sinais_config(novos)
+                if novos:
+                    _simb = {e.get("symbol") for e in novos}
+                    checar_e_alertar([r for r in resultados if r.get("symbol") in _simb])
+                    total = _incrementar_sinais_config(len(novos))
                     if total >= _CALIBRACAO_TRIGGER:
                         auto_calibrar_e_notificar()
             except Exception:

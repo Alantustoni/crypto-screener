@@ -305,7 +305,7 @@ class TestTuningAgressivo(unittest.TestCase):
         sh.salvar_historico([])
         n = sh.registrar_sinais([self._fake_result("SOLUSDT", 5, sniper=True)],
                                 score_minimo=5)
-        self.assertEqual(n, 1)
+        self.assertEqual(len(n), 1)
 
     def test_reversao_opera_com_score_baixo(self):
         # Dip-buy com score baixo (1) deve entrar — qualificado por confluência.
@@ -313,7 +313,7 @@ class TestTuningAgressivo(unittest.TestCase):
         sh.salvar_historico([])
         n = sh.registrar_sinais([self._fake_result("AVAXUSDT", 1, reversao=True)],
                                 score_minimo=5)
-        self.assertEqual(n, 1)
+        self.assertEqual(len(n), 1)
 
     def test_faca_caindo_bloqueada(self):
         # Mesmo sendo dip-buy, score <= -3 ('faca caindo') é barrado pelo piso -2.
@@ -321,7 +321,7 @@ class TestTuningAgressivo(unittest.TestCase):
         sh.salvar_historico([])
         n = sh.registrar_sinais([self._fake_result("XRPUSDT", -4, reversao=True)],
                                 score_minimo=5)
-        self.assertEqual(n, 0)
+        self.assertEqual(len(n), 0)
 
     def test_setup_normal_fraco_bloqueado(self):
         # Setup normal (não dip) com score 3 < piso base 5 → barrado.
@@ -329,7 +329,7 @@ class TestTuningAgressivo(unittest.TestCase):
         sh.salvar_historico([])
         n = sh.registrar_sinais([self._fake_result("ADAUSDT", 3, sniper=False)],
                                 score_minimo=5)
-        self.assertEqual(n, 0)
+        self.assertEqual(len(n), 0)
 
 
 if __name__ == "__main__":
