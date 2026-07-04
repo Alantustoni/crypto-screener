@@ -29,7 +29,14 @@
       50%{filter:drop-shadow(0 0 14px rgba(240,136,62,.9));transform:scale(1.05)}}
     @keyframes b2aGlow{0%,100%{box-shadow:0 0 10px rgba(240,136,62,.18)}50%{box-shadow:0 0 22px rgba(240,136,62,.5)}}
     @keyframes b2aLive{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.65)}}
-    @media(max-width:768px){.brand2a{gap:6px}.b2a-ico{width:28px;height:28px}.b2a-2a{font-size:1.05rem}.b2a-word{font-size:.82rem;letter-spacing:2px}}
+    @media(max-width:768px){
+      /* No mobile a marca vira logo compacto à ESQUERDA (não absoluta) p/ não cobrir os controles */
+      .brand2a{position:static;transform:none;gap:5px;flex-shrink:0}
+      .b2a-ico{width:26px;height:26px}
+      .b2a-2a{font-size:1rem}
+      .b2a-word{display:none}
+      .b2a-live{display:none}
+    }
     .taxa-brl{font-size:.72rem;background:#0a0c10;border:1px solid #1e2330;border-radius:20px;padding:4px 10px;color:#8b949e;white-space:nowrap}
     .taxa-brl strong{color:#3fb950}
     .controls{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-left:auto}

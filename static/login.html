@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-  <title>Crypto Screener — Login</title>
+  <title>2A Crypto — Login</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     body{
@@ -41,18 +41,23 @@
       position:relative;
       z-index:1;
     }
-    .brand-logo{
-      font-size:3.5rem;
-      margin-bottom:16px;
-      display:block;
-    }
-    .brand h1{
-      font-size:1.8rem;
-      font-weight:800;
-      color:#f0883e;
-      letter-spacing:-.5px;
-      margin-bottom:8px;
-    }
+    .login-logo{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:18px}
+    .ll-ico{display:flex;align-items:center;justify-content:center;width:60px;height:60px;border-radius:16px;
+      background:radial-gradient(circle at 30% 25%,#20283a,#0a0c10);border:1px solid #2a3140;
+      box-shadow:0 0 26px rgba(240,136,62,.28);animation:llGlow 2.6s ease-in-out infinite}
+    .ll-2a{font-size:2.6rem;font-weight:900;letter-spacing:-1px;line-height:1;
+      background:linear-gradient(135deg,#ffce8f,#f0883e);-webkit-background-clip:text;background-clip:text;color:transparent;
+      filter:drop-shadow(0 0 10px rgba(240,136,62,.5));animation:llBeat 2s ease-in-out infinite}
+    .ll-word{font-size:1.9rem;font-weight:700;letter-spacing:5px;line-height:1;color:#e6edf3}
+    .ll-live{width:11px;height:11px;border-radius:50%;background:#3fb950;box-shadow:0 0 12px #3fb950;
+      align-self:flex-start;margin-top:6px;animation:llLive 1.4s ease-in-out infinite}
+    @keyframes llBeat{0%,100%{filter:drop-shadow(0 0 6px rgba(240,136,62,.4));transform:scale(1)}50%{filter:drop-shadow(0 0 18px rgba(240,136,62,.9));transform:scale(1.04)}}
+    @keyframes llGlow{0%,100%{box-shadow:0 0 18px rgba(240,136,62,.2)}50%{box-shadow:0 0 34px rgba(240,136,62,.5)}}
+    @keyframes llLive{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.6)}}
+    .mob-brand{display:none;align-items:center;justify-content:center;gap:7px;margin-bottom:26px}
+    .mob-brand .mb-2a{font-size:1.7rem;font-weight:900;letter-spacing:-.5px;line-height:1;background:linear-gradient(135deg,#ffce8f,#f0883e);-webkit-background-clip:text;background-clip:text;color:transparent}
+    .mob-brand .mb-word{font-size:1.35rem;font-weight:700;letter-spacing:3px;line-height:1;color:#e6edf3}
+    @media(max-width:640px){.mob-brand{display:flex}}
     .brand p{
       font-size:.9rem;
       color:#8b949e;
@@ -220,9 +225,22 @@
   <!-- Painel esquerdo — identidade visual -->
   <div class="left-panel">
     <div class="brand">
-      <span class="brand-logo">📊</span>
-      <h1>Crypto Screener Pro</h1>
-      <p>Sistema automatizado de análise técnica para futuros perpétuos na Binance</p>
+      <div class="login-logo">
+        <span class="ll-ico">
+          <svg viewBox="0 0 28 28" width="40" height="40" aria-hidden="true">
+            <line x1="5"  y1="8" x2="5"  y2="22" stroke="#3fb950" stroke-width="1.8" stroke-linecap="round"/>
+            <rect x="3"  y="13" width="4" height="7" rx="1.2" fill="#3fb950"/>
+            <line x1="14" y1="5" x2="14" y2="21" stroke="#f0883e" stroke-width="1.8" stroke-linecap="round"/>
+            <rect x="12" y="10" width="4" height="8" rx="1.2" fill="#f0883e"/>
+            <line x1="23" y1="3" x2="23" y2="19" stroke="#3fb950" stroke-width="1.8" stroke-linecap="round"/>
+            <rect x="21" y="7" width="4" height="9" rx="1.2" fill="#3fb950"/>
+          </svg>
+        </span>
+        <span class="ll-2a">2A</span>
+        <span class="ll-word">CRYPTO</span>
+        <span class="ll-live"></span>
+      </div>
+      <p>Sistema automatizado de análise técnica de criptomoedas</p>
     </div>
 
     <div class="stats-row">
@@ -253,6 +271,9 @@
   <!-- Painel direito — formulário -->
   <div class="right-panel">
     <div class="form-card">
+      <div class="mob-brand">
+        <span class="mb-2a">2A</span><span class="mb-word">CRYPTO</span>
+      </div>
       <div class="form-header">
         <h2>Bem-vindo de volta 👋</h2>
         <p>Digite sua senha para acessar o dashboard</p>
@@ -269,7 +290,7 @@
       </form>
 
       <div class="form-footer">
-        Crypto Screener Pro · Dados via Binance API
+        2A CRYPTO · Dados via Binance
       </div>
     </div>
   </div>
