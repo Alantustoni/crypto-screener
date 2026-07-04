@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-  <title>Crypto Screener Pro</title>
+  <title>2A Crypto</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     body{background:#0a0c10;color:#e6edf3;font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh}
@@ -12,6 +12,26 @@
     header{background:#111318;border-bottom:1px solid #1e2330;padding:10px 20px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:100;flex-wrap:wrap}
     header h1{font-size:1.05rem;font-weight:800;color:#f0883e;letter-spacing:-.3px;white-space:nowrap}
     header p{font-size:.72rem;color:#8b949e;white-space:nowrap}
+
+    /* ── MARCA 2A Crypto (centralizada, pulsando) ── */
+    .brand2a{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+      display:flex;align-items:center;gap:7px;pointer-events:none;z-index:1;white-space:nowrap;
+      animation:b2aFloat 3s ease-in-out infinite}
+    .b2a-badge{font-size:1.15rem;font-weight:900;letter-spacing:-.5px;line-height:1;
+      padding:3px 9px;border-radius:9px;color:#0a0c10;
+      background:linear-gradient(135deg,#f0883e 0%,#ffbe73 100%);
+      box-shadow:0 0 10px rgba(240,136,62,.5);
+      animation:b2aPulse 2s ease-in-out infinite}
+    .b2a-word{font-size:1.2rem;font-weight:800;letter-spacing:.6px;line-height:1;
+      background:linear-gradient(90deg,#f0883e,#3fb950,#f0883e);
+      background-size:200% auto;-webkit-background-clip:text;background-clip:text;color:transparent;
+      animation:b2aShine 4s linear infinite}
+    .b2a-spark{font-size:.8rem;animation:b2aPulse 2s ease-in-out infinite}
+    @keyframes b2aPulse{0%,100%{box-shadow:0 0 8px rgba(240,136,62,.45);transform:scale(1)}
+      50%{box-shadow:0 0 20px rgba(240,136,62,.95),0 0 34px rgba(240,136,62,.35);transform:scale(1.07)}}
+    @keyframes b2aShine{to{background-position:200% center}}
+    @keyframes b2aFloat{0%,100%{transform:translate(-50%,-50%)}50%{transform:translate(-50%,-54%)}}
+    @media(max-width:768px){.brand2a{gap:5px}.b2a-badge{font-size:1rem;padding:2px 7px}.b2a-word{font-size:1rem}.b2a-spark{display:none}}
     .taxa-brl{font-size:.72rem;background:#0a0c10;border:1px solid #1e2330;border-radius:20px;padding:4px 10px;color:#8b949e;white-space:nowrap}
     .taxa-brl strong{color:#3fb950}
     .controls{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-left:auto}
@@ -294,7 +314,11 @@
 <body>
 
 <header>
-  <h1>📊 Crypto Screener Pro</h1>
+  <div class="brand2a" title="2A Crypto">
+    <span class="b2a-badge">2A</span>
+    <span class="b2a-word">Crypto</span>
+    <span class="b2a-spark">📈</span>
+  </div>
   <div class="taxa-brl" id="taxa-display">💵 —</div>
   <div class="controls">
     <select id="interval-select">
