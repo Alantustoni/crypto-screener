@@ -424,6 +424,13 @@ def registrar_sinais(resultados: list, score_minimo: int = SCORE_MINIMO) -> list
     if _regime_bearish():
         score_minimo_efetivo = max(score_minimo, REGIME_SCORE_MINIMO)
 
+    # Snapshot macro congelado no momento do lote (mesmo p/ todos os sinais desta
+    # varredura). Serve p/ a análise de edge medir se contexto de mercado importa.
+    try:
+        _fg_lote = (get_fear_greed() or {}).get("value")
+    except Exception:
+        _fg_lote = None
+
     for r in resultados:
         if not r.get("setup_completo"):
             continue
@@ -487,6 +494,20 @@ def registrar_sinais(resultados: list, score_minimo: int = SCORE_MINIMO) -> list
             "shadow_rsi": r.get("shadow_rsi"),
             "ob_imbalance": r.get("ob_imbalance"),
             "atr_pct": r.get("atr_pct"),
+            # ── Snapshot de features AO VIVO (congelado na entrada) ────────────
+            # Só dá pra medir edge se guardarmos o que sabíamos no momento do
+            # sinal. ob_imbalance e cvd são microestrutura (não reconstruíveis no
+            # histórico); o resto contextualiza. A análise em /api/edge separa
+            # trades por esses campos e vê quais preveem acerto de verdade.
+            "ema_spread_pct":   r.get("ema_spread_pct"),
+            "vol_zscore":       r.get("vol_zscore"),
+            "cvd_sinal":        r.get("cvd_sinal"),
+            "cvd_pct":          r.get("cvd_pct"),
+            "preco_acima_vwap": r.get("preco_acima_vwap"),
+            "bb_sinal":         r.get("bb_sinal"),
+            "tendencia_diaria": r.get("tendencia_diaria"),
+            "mtf_score":        r.get("mtf_score"),
+            "fg_entrada":       _fg_lote,
             "resultado_1h": None, "resultado_2h": None, "resultado_4h": None,
             "resultado_8h": None, "resultado_16h": None, "resultado_24h": None,
             "verificado_em": None,

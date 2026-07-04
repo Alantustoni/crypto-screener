@@ -849,6 +849,109 @@ def taxa_brl():
     return {"taxa": None, "erro": "Nao foi possivel obter a cotacao."}
 
 
+@app.get("/api/edge")
+def edge_analise():
+    """Análise de EDGE por feature — o instrumento pra descobrir onde (se em algum
+    lugar) mora a vantagem. Separa os trades FECHADOS por condição do sinal
+    (order-book, cvd, score, volume, contexto de mercado…) e mede win rate,
+    expectativa e profit factor de cada grupo. Um bucket com PF > 1 e expectativa
+    > 0, com amostra grande, aponta um filtro que vale a pena. Precisa de semanas
+    de dados pra não ser ruído."""
+    historico = carregar_historico()
+    tg        = carregar_config()
+    capital   = float(tg.get("capital_total", 1000))
+    risco_pct = float(tg.get("risco_por_trade_pct", 1.0))
+
+    def _fechado(h):
+        return bool(h.get("stop_automatico")) or h.get("resultado_8h") is not None
+
+    def _num(v):
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            return None
+
+    trades = []
+    for h in historico:
+        if not h.get("setup_completo") or not _fechado(h):
+            continue
+        pos = posicao_risco(h, capital, risco_pct)
+        pl  = pl_simulado(h, pos)
+        if pl is None or pos <= 0:
+            continue
+        trades.append({"h": h, "pl": pl, "pct": pl / pos * 100})
+
+    def _stats(sub):
+        if not sub:
+            return None
+        wins = [t for t in sub if t["pl"] > 0]
+        sW = sum(t["pl"] for t in wins)
+        sL = abs(sum(t["pl"] for t in sub if t["pl"] <= 0))
+        return {
+            "n": len(sub),
+            "win_rate": round(len(wins) / len(sub) * 100, 1),
+            "expectancy_pct": round(sum(t["pct"] for t in sub) / len(sub), 3),
+            "profit_factor": round(sW / sL, 2) if sL > 0 else None,
+        }
+
+    features = {
+        "tipo_entrada": [
+            ("dip-buy (sniper/reversao)", lambda h: bool(h.get("sniper_setup") or h.get("reversao_setup"))),
+            ("setup normal",              lambda h: not (h.get("sniper_setup") or h.get("reversao_setup"))),
+        ],
+        "order_book (ob_imbalance)": [
+            ("compra forte (>0.3)", lambda h: (_num(h.get("ob_imbalance")) or 0) > 0.3),
+            ("neutro (-0.3..0.3)",  lambda h: -0.3 <= (_num(h.get("ob_imbalance")) or 0) <= 0.3),
+            ("venda (<-0.3)",       lambda h: (_num(h.get("ob_imbalance")) or 0) < -0.3),
+        ],
+        "score": [
+            (">= 8",  lambda h: (_num(h.get("score")) or 0) >= 8),
+            ("5 a 7", lambda h: 5 <= (_num(h.get("score")) or 0) < 8),
+            ("< 5",   lambda h: (_num(h.get("score")) if h.get("score") is not None else -99) < 5),
+        ],
+        "vol_zscore (pico de volume)": [
+            ("pico (>2)", lambda h: (_num(h.get("vol_zscore")) or 0) > 2),
+            ("normal",    lambda h: (_num(h.get("vol_zscore")) or 0) <= 2),
+        ],
+        "ema_spread_pct (momentum)": [
+            ("forte (>0.5)",  lambda h: (_num(h.get("ema_spread_pct")) or 0) > 0.5),
+            ("neutro",        lambda h: -0.5 <= (_num(h.get("ema_spread_pct")) or 0) <= 0.5),
+            ("fraco (<-0.5)", lambda h: (_num(h.get("ema_spread_pct")) or 0) < -0.5),
+        ],
+        "preco_acima_vwap": [
+            ("sim", lambda h: h.get("preco_acima_vwap") is True),
+            ("nao", lambda h: h.get("preco_acima_vwap") is False),
+        ],
+        "fear_greed_entrada": [
+            ("medo (<=25)",    lambda h: (_num(h.get("fg_entrada")) or 50) <= 25),
+            ("neutro (26-60)", lambda h: 25 < (_num(h.get("fg_entrada")) or 50) <= 60),
+            ("ganancia (>60)", lambda h: (_num(h.get("fg_entrada")) or 50) > 60),
+        ],
+        "rsi_entrada": [
+            ("sobrevendido (<35)", lambda h: (_num(h.get("rsi")) or 50) < 35),
+            ("35 a 50",            lambda h: 35 <= (_num(h.get("rsi")) or 50) < 50),
+            (">= 50",              lambda h: (_num(h.get("rsi")) or 50) >= 50),
+        ],
+    }
+
+    por_feature = {}
+    for fname, buckets in features.items():
+        linhas = []
+        for label, pred in buckets:
+            s = _stats([t for t in trades if pred(t["h"])])
+            if s:
+                linhas.append({"bucket": label, **s})
+        por_feature[fname] = linhas
+
+    return {
+        "amostra_total": len(trades),
+        "baseline": _stats(trades),
+        "por_feature": por_feature,
+        "nota": ("Compare cada bucket com o baseline. Bucket com PF > 1 e "
+                 "expectancy > 0 e n grande = candidato a edge. n pequeno = ruido."),
+    }
+
+
 @app.get("/api/health")
 def health_check():
     """Painel de saúde — consolida contexto, filtros ativos, performance e calibração."""
