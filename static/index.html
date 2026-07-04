@@ -217,6 +217,7 @@
     .mpnl-item{display:flex;flex-direction:column;gap:1px;min-width:70px}
     .mpnl-label{font-size:.6rem;color:#8b949e;text-transform:uppercase;letter-spacing:.4px}
     .mpnl-val{font-size:.95rem;font-weight:800}
+    .mpnl-brl{font-size:.6rem;color:#8b949e;font-weight:600}
 
   /* ═══════════════════ MOBILE ═══════════════════ */
   @media (max-width: 768px) {
@@ -435,6 +436,7 @@
     <div class="mpnl-item">
       <span class="mpnl-label">P&L hoje</span>
       <span class="mpnl-val" id="mpnl-pl">—</span>
+      <span class="mpnl-brl" id="mpnl-pl-brl"></span>
     </div>
     <div class="mpnl-item">
       <span class="mpnl-label">Ops hoje</span>
@@ -781,7 +783,7 @@
     <div class="hist-card"><div class="hl">✅ Deram lucro</div><div class="hv green" id="an-r-lucro">—</div><div class="hsub">fechados no verde</div></div>
     <div class="hist-card"><div class="hl">❌ Deram prejuízo</div><div class="hv red" id="an-r-prej">—</div><div class="hsub">fechados no vermelho</div></div>
     <div class="hist-card"><div class="hl">% de acerto</div><div class="hv" id="an-r-wr">—</div><div class="hsub" id="an-r-wr-sub">dos fechados</div></div>
-    <div class="hist-card"><div class="hl">Resultado total</div><div class="hv" id="an-r-pl">—</div><div class="hsub">com taxa descontada</div></div>
+    <div class="hist-card"><div class="hl">Resultado total</div><div class="hv" id="an-r-pl">—</div><div class="hsub" id="an-r-pl-sub">com taxa descontada</div></div>
     <div class="hist-card"><div class="hl">Profit Factor</div><div class="hv" id="an-r-pf">—</div><div class="hsub" id="an-r-pf-sub">quanto ganha p/ $1 perdido</div></div>
   </div>
 
@@ -993,6 +995,8 @@
       const plEl=document.getElementById('mpnl-pl');
       plEl.textContent=pl!=null?(pl>=0?'+':'')+'$'+Math.abs(pl).toFixed(2):'—';
       plEl.style.color=pl==null?'#8b949e':pl>=0?'#3fb950':'#f85149';
+      const plBrl=document.getElementById('mpnl-pl-brl');
+      if(plBrl) plBrl.textContent=pl!=null?brlAoLado(pl):'';
 
       document.getElementById('mpnl-ops').textContent=ops??'—';
 
@@ -1015,6 +1019,10 @@
       if(d.taxa){
         taxaBRL=d.taxa;
         document.getElementById('taxa-display').innerHTML=`💵 Dólar: <strong>R$ ${d.taxa.toFixed(2)}</strong>`;
+        // Cotação pode chegar depois do primeiro paint dos P&L — repinta os
+        // valores pra o "R$ ao lado" aparecer sem esperar o refresh de 60s.
+        try{ carregarMobilePnl(); }catch(e){}
+        try{ if(document.getElementById('tab-analytics')?.classList.contains('active')) carregarAnalytics(); }catch(e){}
       } else {
         document.getElementById('taxa-display').textContent='💵 Cotação indisponível';
       }
@@ -1224,6 +1232,14 @@
 
   function formatPreco(p){return p<0.01?'$'+p.toFixed(6):p<1?'$'+p.toFixed(4):p<100?'$'+p.toFixed(2):'$'+p.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
   function formatBRL(p){const pb=p*(taxaBRL||0);if(!taxaBRL)return'';return pb<0.01?'R$'+pb.toFixed(6):pb<1?'R$'+pb.toFixed(4):pb<100?'R$'+pb.toFixed(2):'R$'+pb.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
+  // Converte um valor de P&L em USD para "R$ X" (mostrado ao lado do dólar).
+  // Retorna '' quando a cotação ainda não carregou. Sempre magnitude (2 casas) —
+  // o sinal já vem do valor em dólar exibido junto.
+  function brlAoLado(usd){
+    if(taxaBRL==null||usd==null||isNaN(usd)) return '';
+    const v=Math.abs(usd)*taxaBRL;
+    return 'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  }
 
   let _renderNovos=new Set();
   function renderTabela(novos){
@@ -1989,6 +2005,8 @@
         const pl=r.pl_total||0;
         plEl.textContent=(pl>=0?'+':'')+'$'+Math.abs(pl).toFixed(2);
         plEl.className='hv '+(pl>0?'green':pl<0?'red':'neutral');
+        const plSub=document.getElementById('an-r-pl-sub');
+        if(plSub){const b=brlAoLado(pl); plSub.textContent=b?(b+' · com taxa'):'com taxa descontada';}
       }
 
       const pfEl=document.getElementById('an-r-pf');
@@ -2023,6 +2041,7 @@
               +(dip?'<span style="font-size:.55rem;background:#d2a8ff22;color:#d2a8ff;border:1px solid #d2a8ff44;border-radius:4px;padding:0 4px">DIP</span>':'')
               +'</div>'
               +'<div style="font-size:1.05rem;font-weight:800;color:'+cor+'">'+(win?'+':'')+'$'+Math.abs(x.pl).toFixed(2)+'</div>'
+              +(brlAoLado(x.pl)?'<div style="font-size:.62rem;color:#8b949e">'+brlAoLado(x.pl)+'</div>':'')
               +'<div style="font-size:.72rem;color:'+cor+'">'+(x.pct>=0?'+':'')+x.pct+'%</div>'
               +'<div style="font-size:.6rem;color:#4a5568;margin-top:3px">'+(x.ts||'')+'</div>'
               +'</div>';
@@ -2249,7 +2268,8 @@
       document.getElementById('h-hoje').textContent = hoje.sinais ?? '—';
       const pl = hoje.pl_hoje;
       const plEl = document.getElementById('h-hoje-pl');
-      plEl.textContent = pl!=null ? (pl>=0?'+':'')+'$'+pl.toFixed(2)+' hoje' : 'P&L: sem dados';
+      const plB = pl!=null ? brlAoLado(pl) : '';
+      plEl.textContent = pl!=null ? (pl>=0?'+':'')+'$'+pl.toFixed(2)+(plB?' · '+plB:'')+' hoje' : 'P&L: sem dados';
       plEl.style.color = pl==null?'#555':pl>=0?'#3fb950':'#f85149';
 
       const perf = d.performance || {};
