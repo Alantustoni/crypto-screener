@@ -165,6 +165,7 @@ def scan(
     interval: str = Query(default="1h"),
     top_n: int = Query(default=100, ge=5, le=100),
     telegram: bool = Query(default=True),
+    registrar: bool = Query(default=True),
 ):
     if interval not in INTERVALOS:
         return {"error": "Intervalo invalido. Use: {}".format(list(INTERVALOS.keys()))}
@@ -226,19 +227,21 @@ def scan(
     except Exception as e:
         return {"error": "Erro no screener: {}".format(e), "resultados": [], "total": 0}
 
-    # 1º REGISTRA (travas persistentes), 2º ALERTA só o que foi registrado.
-    # Assim alerta e histórico ficam 1:1 e não há rajada de alertas após restart.
+    # Registro/alerta só quando registrar=True. O dashboard chama com
+    # registrar=false (só EXIBE) — quem registra e alerta é o loop de fundo.
+    # Assim abrir o app nunca dispara rajada de notificações.
     novos_entradas = []
-    try:
-        _score_min = int(carregar_config_screener().get("score_minimo_setup", 8))
-        novos_entradas = registrar_sinais(resultados, score_minimo=_score_min)
-    except Exception:
-        pass
+    if registrar:
+        try:
+            _score_min = int(carregar_config_screener().get("score_minimo_setup", 8))
+            novos_entradas = registrar_sinais(resultados, score_minimo=_score_min)
+        except Exception:
+            pass
     novos_sinais = len(novos_entradas)
 
     alertas = []
     try:
-        if telegram and novos_entradas:
+        if registrar and telegram and novos_entradas:
             _simbolos_novos = {e.get("symbol") for e in novos_entradas}
             _res_novos = [r for r in resultados if r.get("symbol") in _simbolos_novos]
             alertas = checar_e_alertar(_res_novos)
@@ -959,12 +962,13 @@ async def iniciar_loops_automaticos():
             except Exception:
                 pass
 
-    # Loop 2: scan automatico a cada 60 min
+    # Loop 2: scan automatico a cada 5 min (registra + alerta em segundo plano).
+    # É o ÚNICO lugar que registra/alerta agora — o dashboard só exibe.
     async def loop_scan_automatico():
-        await asyncio.sleep(60 * 60)
+        await asyncio.sleep(60)   # primeira rodada ~1 min após o boot
         while True:
             try:
-                resultados = rodar_screener(interval="1h", top_n=50)
+                resultados = rodar_screener(interval="1h", top_n=100)
                 _score_min = int(carregar_config_screener().get("score_minimo_setup", 8))
                 # Registra primeiro; alerta só o que entrou de fato (1:1 com histórico)
                 novos = registrar_sinais(resultados, score_minimo=_score_min)
