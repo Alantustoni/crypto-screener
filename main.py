@@ -890,12 +890,16 @@ def health_check():
         if h.get("setup_completo") and h.get("timestamp", "").startswith(hoje_str)
     ]
 
-    # P&L hoje
+    # P&L hoje — MESMO método líquido do "Resultado total" da aba Analytics:
+    # pl_simulado desconta taxa/slippage e aplica o rateio moonbag 50/30/20.
+    # (Continua sendo "hoje" e ainda inclui abertas marcadas a mercado — o que
+    #  muda é só o método: antes era checkpoint bruto, agora é líquido, então os
+    #  dois números param de parecer contraditórios.)
     pl_hoje = 0.0
     for h in setups_hoje:
-        vals = [h.get(c) for c in ["resultado_1h","resultado_2h","resultado_4h","resultado_8h"] if h.get(c) is not None]
-        if vals:
-            pl_hoje += vals[-1] / 100 * _pos(h)
+        p = pl_simulado(h, _pos(h))
+        if p is not None:
+            pl_hoje += p
 
     # Fechados — win rate e profit factor pelo P&L REAL (pl_simulado + taxa),
     # os MESMOS números da aba Analytics (evita a contradição de antes).
