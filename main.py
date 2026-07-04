@@ -252,11 +252,13 @@ def scan(
         except Exception:
             pass
 
+    _sme = _calcular_score_minimo()
     ctx = {
         "fear_greed":    get_fear_greed(),
         "btc_dominance": get_btc_dominance(),
         "btc_4h":        get_btc_4h_tendencia(),
-        "score_minimo_efetivo": _calcular_score_minimo(),
+        "score_minimo_efetivo": _sme,
+        "modo_atual":    _modo_por_score(_sme),
     }
 
     # Salvar no cache
@@ -286,6 +288,18 @@ def _calcular_score_minimo() -> int:
         return base + (1 if dom is not None and dom > 55 else 0)
     except Exception:
         return 5
+
+
+def _modo_por_score(s) -> str:
+    """Modo do sistema a partir do score mínimo efetivo — fonte única, usada
+    pelo Screener e pelo Status para ficarem sempre iguais."""
+    if s is None:
+        return "agressivo"
+    if s >= 8:
+        return "conservador"
+    if s >= 7:
+        return "cauteloso"
+    return "agressivo"
 
 
 @app.get("/api/mercado")
@@ -818,12 +832,7 @@ def health_check():
     btc_4h_ajuste  = 0
     score_min_efetivo = score_base + fg_ajuste + btc_dom_ajuste + btc_4h_ajuste
 
-    if score_min_efetivo >= 8:
-        modo = "conservador"
-    elif score_min_efetivo >= 7:
-        modo = "cauteloso"
-    else:
-        modo = "agressivo"
+    modo = _modo_por_score(score_min_efetivo)
 
     # ── Histórico ────────────────────────────────────────────────────
     historico   = carregar_historico()
@@ -850,30 +859,23 @@ def health_check():
         if vals:
             pl_hoje += vals[-1] / 100 * _pos(h)
 
-    # Fechados — últimas 10 + geral
+    # Fechados — win rate e profit factor pelo P&L REAL (pl_simulado + taxa),
+    # os MESMOS números da aba Analytics (evita a contradição de antes).
     fechados = [h for h in historico if h.get("setup_completo") and _fechado(h)]
-    ult10    = fechados[-10:]
+    pls_fech = [(h, pl_simulado(h, _pos(h))) for h in fechados]
+    pls_fech = [(h, p) for h, p in pls_fech if p is not None]
 
-    def _win(lst):
-        wins = sum(
-            1 for h in lst
-            if any(h.get(c, None) is not None and h.get(c, 0) > 0
-                   for c in ["resultado_1h","resultado_2h","resultado_4h","resultado_8h"])
-        )
-        return round(wins / len(lst) * 100) if lst else None
+    def _win_rate(par_lst):
+        if not par_lst:
+            return None
+        return round(sum(1 for _, p in par_lst if p > 0) / len(par_lst) * 100)
 
-    # Profit Factor simples
-    ganhos = perdas = 0.0
-    for h in fechados:
-        vals = [h.get(c) for c in ["resultado_1h","resultado_2h","resultado_4h","resultado_8h"] if h.get(c) is not None]
-        if not vals:
-            continue
-        pl = vals[-1] / 100 * _pos(h)
-        if pl > 0:
-            ganhos += pl
-        else:
-            perdas += abs(pl)
+    win_geral = _win_rate(pls_fech)
+    win_10    = _win_rate(pls_fech[-10:])
+    ganhos = sum(p for _, p in pls_fech if p > 0)
+    perdas = abs(sum(p for _, p in pls_fech if p <= 0))
     pf = round(ganhos / perdas, 2) if perdas > 0 else None
+    n_fechados = len(pls_fech)
 
     # Circuit breaker portfolio
     cb_portfolio = capital > 0 and pl_hoje < -(capital * 0.05)
@@ -904,9 +906,9 @@ def health_check():
             "pl_hoje":  round(pl_hoje, 2),
         },
         "performance": {
-            "win_rate_10":    _win(ult10),
-            "win_rate_geral": _win(fechados),
-            "total_fechados": len(fechados),
+            "win_rate_10":    win_10,
+            "win_rate_geral": win_geral,
+            "total_fechados": n_fechados,
             "profit_factor":  pf,
         },
         "circuit_breakers": {

@@ -359,7 +359,6 @@
     <div class="card"><div class="label">✅ Possível compra</div><div class="value green" id="s-bullish">-</div><div class="sublabel">oportunidades</div></div>
     <div class="card"><div class="label">🔥 Setup Completo</div><div class="value green" id="s-setup">-</div><div class="sublabel">todos sinais OK</div></div>
     <div class="card"><div class="label">⚡ Quase Setup</div><div class="value orange" id="s-quase">-</div><div class="sublabel">monitorar de perto</div></div>
-    <div class="card"><div class="label">🔄 Top 10</div><div class="value orange" id="s-rotation">-</div><div class="sublabel">líderes de momentum</div></div>
   </div>
 
   <div class="filters" id="filter-row" style="display:none">
@@ -369,7 +368,6 @@
     <button class="filter-btn" onclick="setFiltro('quedas',this)">📉 Maiores Quedas</button>
     <button class="filter-btn" onclick="setFiltro('altas',this)">📈 Maiores Altas</button>
     <button class="filter-btn" onclick="setFiltro('quase',this)">⚡ Quase Setup</button>
-    <button class="filter-btn" onclick="setFiltro('rotation',this)">🔄 Top 10</button>
   </div>
 
   <!-- Skeleton loading — visível durante o scan -->
@@ -527,9 +525,9 @@
 
   <div class="hist-stats" id="hist-stats">
     <div class="hist-card"><div class="hl">Total de sinais</div><div class="hv orange" id="hs-total">—</div><div class="hsub">registrados</div></div>
-    <div class="hist-card"><div class="hl">Taxa acerto 1h</div><div class="hv" id="hs-1h">—</div><div class="hsub" id="hs-1h-sub">aguardando dados</div></div>
-    <div class="hist-card"><div class="hl">Taxa acerto 4h</div><div class="hv" id="hs-4h">—</div><div class="hsub" id="hs-4h-sub">aguardando dados</div></div>
-    <div class="hist-card"><div class="hl">Taxa acerto 24h</div><div class="hv" id="hs-24h">—</div><div class="hsub" id="hs-24h-sub">aguardando dados</div></div>
+    <div class="hist-card"><div class="hl">Subiu em 1h</div><div class="hv" id="hs-1h">—</div><div class="hsub" id="hs-1h-sub">% verde no checkpoint</div></div>
+    <div class="hist-card"><div class="hl">Subiu em 4h</div><div class="hv" id="hs-4h">—</div><div class="hsub" id="hs-4h-sub">% verde no checkpoint</div></div>
+    <div class="hist-card"><div class="hl">Subiu em 24h</div><div class="hv" id="hs-24h">—</div><div class="hsub" id="hs-24h-sub">% verde no checkpoint</div></div>
     <div class="hist-card"><div class="hl">Setup Completo</div><div class="hv purple" id="hs-setup">—</div><div class="hsub" id="hs-setup-sub">setups registrados</div></div>
   </div>
 
@@ -1112,26 +1110,18 @@
       el.className='pv '+(dom>60?'bad':dom<45?'ok':'warn');
     }
 
-    // Mode badge — calcula a partir dos dados disponíveis
+    // Mode badge — usa o modo REAL do backend (mesma fonte do Status)
     const badge=document.getElementById('mkt-mode-badge');
-    badge.style.display='flex';
-    const fgv=fg.value;
-    let modoTxt='', modoCls='';
-    if(fgv!=null&&dom!=null){
-      if(fgv<=25&&dom>=55){modoTxt='🛡️ Conservador Extremo';modoCls='danger';}
-      else if(fgv<=35||dom>=57){modoTxt='⚠️ Conservador';modoCls='';}
-      else if(fgv>=55&&dom<=52){modoTxt='🚀 Agressivo';modoCls='safe';}
-      else{modoTxt='📊 Normal';modoCls='safe';}
+    const m=ctx.modo_atual;
+    if(m){
+      const map={agressivo:['🚀 Agressivo','safe'],cauteloso:['⚠️ Cauteloso',''],conservador:['🛡️ Conservador','danger']};
+      const [txt,cls]=map[m]||['📊 '+m,'safe'];
+      badge.textContent=txt;
+      badge.className='mode-badge '+cls;
+      badge.style.display='flex';
+    } else {
+      badge.style.display='none';
     }
-    if(ctx.modo_atual){
-      const m=ctx.modo_atual;
-      if(m.includes('extremo')||m.includes('Extremo')){modoTxt='🛡️ Conservador Extremo';modoCls='danger';}
-      else if(m.includes('conservador')||m.includes('Conservador')){modoTxt='⚠️ Conservador';modoCls='';}
-      else if(m.includes('agressivo')||m.includes('Agressivo')){modoTxt='🚀 Agressivo';modoCls='safe';}
-      else{modoTxt='📊 '+m;modoCls='safe';}
-    }
-    if(modoTxt){badge.textContent=modoTxt;badge.className='mode-badge '+modoCls;}
-    else{badge.style.display='none';}
   }
 
   function atualizarSummary(){
@@ -1141,7 +1131,6 @@
     document.getElementById('s-bullish').textContent=allData.filter(d=>d.score>=2).length;
     document.getElementById('s-setup').textContent=allData.filter(d=>d.setup_completo).length;
     document.getElementById('s-quase').textContent=allData.filter(d=>d.quase_setup).length;
-    document.getElementById('s-rotation').textContent=allData.filter(d=>d.rotation_rank!=null&&d.rotation_rank<=10).length;
 
     // Banner BTC
     const btcRisco=allData.find(d=>d.btc_risco);
@@ -2149,10 +2138,11 @@
 
       // ── Modo
       const modoEl = document.getElementById('h-modo');
-      const modoRaw = (d.modo || 'normal').toLowerCase().replace(/\s+/g,'_');
-      const modoLabel = modoRaw==='conservador_extremo'?'CONSERVADOR EXTREMO':modoRaw==='conservador'?'CONSERVADOR':'NORMAL';
-      modoEl.textContent = modoLabel;
-      modoEl.style.color = modoRaw==='conservador_extremo'?'#f85149':modoRaw==='conservador'?'#e3b341':'#3fb950';
+      const modoRaw = (d.modo || 'agressivo').toLowerCase();
+      const mmap = {agressivo:['AGRESSIVO','#3fb950'], cauteloso:['CAUTELOSO','#e3b341'], conservador:['CONSERVADOR','#f85149']};
+      const [mlab,mcor] = mmap[modoRaw] || ['NORMAL','#3fb950'];
+      modoEl.textContent = mlab;
+      modoEl.style.color = mcor;
       document.getElementById('h-score-min').textContent = d.score_minimo_efetivo ?? '—';
 
       // Ajustes breakdown
