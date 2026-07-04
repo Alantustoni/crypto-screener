@@ -294,13 +294,13 @@
     .m-save-btn:active{background:#1a1e28;color:#8b949e}
 
     /* ── BOTTOM NAVIGATION ── */
-    .bottom-nav{display:flex!important;position:fixed;bottom:0;left:0;right:0;z-index:200;background:#111318;border-top:1px solid #1e2330;height:62px}
-    .bnav-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;color:#4a5568;transition:color .15s;font-size:.6rem;font-weight:600;border:none;background:none;-webkit-tap-highlight-color:transparent;padding:0}
+    .bottom-nav{display:flex!important;position:fixed;bottom:0;left:0;right:0;z-index:200;background:#111318;border-top:1px solid #1e2330;height:60px}
+    .bnav-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;color:#4a5568;transition:color .15s;font-size:.54rem;font-weight:600;border:none;background:none;-webkit-tap-highlight-color:transparent;padding:0;min-width:0}
     .bnav-item.active{color:#f0883e}
-    .bnav-icon{font-size:1.2rem;line-height:1.1}
-    .bnav-scan{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;color:#0a0c10;background:#f0883e;font-size:.65rem;font-weight:800;border:none;-webkit-tap-highlight-color:transparent}
+    .bnav-icon{font-size:1.05rem;line-height:1.1}
+    .bnav-scan{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;color:#0a0c10;background:#f0883e;font-size:.56rem;font-weight:800;border:none;-webkit-tap-highlight-color:transparent;min-width:0}
     .bnav-scan:disabled{opacity:.5}
-    .bnav-scan .bnav-icon{font-size:1.4rem}
+    .bnav-scan .bnav-icon{font-size:1.25rem}
 
     /* Histórico mobile */
     .hist-stats{padding:10px 14px;gap:6px}
@@ -488,6 +488,12 @@
   </button>
   <button class="bnav-item" id="bnav-historico" onclick="mudarAbaNav('historico',this);carregarHistorico()">
     <span class="bnav-icon">📋</span>Histórico
+  </button>
+  <button class="bnav-item" id="bnav-analytics" onclick="mudarAbaNav('analytics',this);carregarAnalytics()">
+    <span class="bnav-icon">🔬</span>Analytics
+  </button>
+  <button class="bnav-item" id="bnav-status" onclick="mudarAbaNav('health',this);carregarHealth()">
+    <span class="bnav-icon">🩺</span>Status
   </button>
 </nav>
 
