@@ -467,9 +467,15 @@ def api_analytics():
 
     # pl_simulado agora vem de trading_math (fonte única) — import no topo.
 
+    # Só trades REALMENTE encerrados (stop, tp2/moonbag setam resultado_8h) —
+    # mesma definição do Status, para os números baterem. Posições abertas com
+    # checkpoints parciais NÃO entram no win rate / profit factor.
+    def _fechado_an(h):
+        return bool(h.get("stop_automatico")) or h.get("resultado_8h") is not None
+
     fechados = []
     for h in historico_data:
-        if not h.get("setup_completo"):
+        if not h.get("setup_completo") or not _fechado_an(h):
             continue
         pos = posicao_de(h)
         pl  = pl_simulado(h, pos)
@@ -541,7 +547,7 @@ def api_analytics():
             max_dd = dd
 
     # Portfolio circuit breaker status
-    abertas = [h for h in historico_data if h.get("setup_completo") and h.get("resultado_8h") is None]
+    abertas = [h for h in historico_data if h.get("setup_completo") and not _fechado_an(h)]
     risco_aberto = sum(posicao_de(h) * SL / 100 for h in abertas)
     cb_ativo = (capital > 0) and (acum < 0) and (abs(acum) / capital * 100 > 5.0)
 
