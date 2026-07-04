@@ -504,6 +504,11 @@
         <div class="tig"><label>Pontuação mínima para alertar</label>
           <select id="tg-score"><option value="2">+2 (moderado)</option><option value="3" selected>+3 (bom)</option><option value="4">+4 (excelente)</option><option value="5">+5 (Setup Completo)</option></select>
         </div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap">
+          <div class="tig" style="flex:1;min-width:130px"><label>💰 Capital total (USD)</label><input type="number" id="tg-capital" min="10" step="10" placeholder="1000"></div>
+          <div class="tig" style="flex:1;min-width:130px"><label>📦 Valor base por trade (USD)</label><input type="number" id="tg-base" min="1" step="1" placeholder="20"></div>
+        </div>
+        <div style="font-size:.68rem;color:#4a5568;margin-top:-4px">Cada trade usa o valor base × multiplicador do score (1x/1,5x/2x), limitado a 10% do capital.</div>
         <div class="tg-row">
           <label style="display:flex;align-items:center;gap:8px;font-size:.82rem;color:#c9d1d9">
             <label class="toggle-switch"><input type="checkbox" id="tg-ativo"><span class="toggle-slider"></span></label>
@@ -1347,11 +1352,25 @@
     const chatid=document.getElementById('tg-chatid').value;
     const score=document.getElementById('tg-score').value;
     const ativo=document.getElementById('tg-ativo').checked;
+    const capital=parseFloat(document.getElementById('tg-capital').value)||0;
+    const base=parseFloat(document.getElementById('tg-base').value)||0;
     try{
-      const res=await fetch(`/api/telegram/salvar?ativo=${ativo}&bot_token=${encodeURIComponent(token)}&chat_id=${encodeURIComponent(chatid)}&score_minimo=${score}`,{method:'POST'});
+      const res=await fetch(`/api/telegram/salvar?ativo=${ativo}&bot_token=${encodeURIComponent(token)}&chat_id=${encodeURIComponent(chatid)}&score_minimo=${score}&capital_total=${capital}&base_valor_trade=${base}`,{method:'POST'});
       const d=await res.json();
       document.getElementById('tg-status').textContent=d.sucesso?'✅ '+d.mensagem:'❌ Erro ao salvar.';
     }catch(e){document.getElementById('tg-status').textContent='❌ Erro ao salvar.';}
+  }
+
+  // Preenche os campos do Telegram (capital/base/chatid/score/ativo) com o que já está salvo
+  async function carregarTgConfig(){
+    try{
+      const d=await fetch('/api/telegram/config').then(r=>r.json());
+      if(d.capital_total!=null) document.getElementById('tg-capital').value=d.capital_total;
+      if(d.base_valor_trade!=null) document.getElementById('tg-base').value=d.base_valor_trade;
+      if(d.chat_id) document.getElementById('tg-chatid').value=d.chat_id;
+      if(d.score_minimo!=null) document.getElementById('tg-score').value=String(d.score_minimo);
+      document.getElementById('tg-ativo').checked=!!d.ativo;
+    }catch(e){}
   }
 
   // ── AUTO REFRESH
@@ -2250,6 +2269,7 @@
     rodarScan();
     iniciarPollingTela();
     carregarMobilePnl();
+    carregarTgConfig();
     // Inicializa o candle timer imediatamente
     const ct=document.getElementById('candle-timer');
     if(ct) ct.textContent=calcularTempoCandle();

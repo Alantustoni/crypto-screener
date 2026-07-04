@@ -343,6 +343,8 @@ def salvar_telegram(
     bot_token: str = Query(default=""),
     chat_id: str = Query(default=""),
     score_minimo: int = Query(default=3),
+    capital_total: float = Query(default=-1),
+    base_valor_trade: float = Query(default=-1),
 ):
     config = carregar_config()
     config["ativo"] = ativo
@@ -350,6 +352,11 @@ def salvar_telegram(
     config["chat_id"] = chat_id
     if bot_token and "SEU_TOKEN" not in bot_token:
         config["bot_token"] = bot_token
+    # Capital e valor-base por trade (só atualiza se enviado > 0)
+    if capital_total > 0:
+        config["capital_total"] = capital_total
+    if base_valor_trade > 0:
+        config["base_valor_trade"] = base_valor_trade
     salvar_config(config)
     return {"sucesso": True, "mensagem": "Configuracoes salvas!"}
 
