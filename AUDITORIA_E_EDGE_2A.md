@@ -45,6 +45,17 @@ Minha primeira hipótese foi que o problema era a saída cortar o ganhador cedo.
 
 **Todas perdem. Nenhuma passou nem perto de PF 1.** Deixar o ganhador correr até piorou em vários casos. A lição é dura e importante: **não dá pra consertar uma entrada ruim com uma saída boa.** Quando o sinal de entrada não prevê o movimento futuro melhor que o acaso (depois de custos), nenhuma gestão de saída cria lucro. O gargalo não é a saída — é a **entrada não ter vantagem preditiva**.
 
+### Teste ampliado: 167 dias, 30 moedas, 4h (com filtro de regime)
+
+Ampliei pra ~167 dias em timeframe 4h (menos ruído, menos custo) e adicionei o instinto certo — só operar em tendência de alta (acima da EMA200):
+
+| Estratégia | Trades | PF geral | PF fora-amostra |
+|---|---|---|---|
+| Momentum 4h | 534 | 0,54 | 0,52 |
+| Momentum + regime *bull* (EMA200) | 373 | 0,60 | 0,47 |
+
+O contexto que explica muita coisa: **o buy & hold médio das moedas foi −36% nesse período** — foi mercado de baixa. Uma estratégia *long-only* (só compra) não tem como lucrar quando o mercado inteiro cai; ela só perde menos, na melhor das hipóteses. O filtro de regime ajudou de leve, mas não o bastante. Conclusão consistente entre **todos** os testes (dip, momentum 1h e 4h, várias saídas, com e sem filtro de regime, 500+ trades): **nenhuma variante de preço long-only mostra edge líquido aqui.**
+
 ---
 
 ## 3. Por que o painel diz o contrário?
