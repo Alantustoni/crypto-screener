@@ -94,6 +94,24 @@ def _incrementar_sinais_config(n):
         return 0
 
 
+def _resetar_contador_calibracao():
+    """Zera sinais_desde_calibracao na fonte AUTORITATIVA (DB + arquivo + cache).
+
+    O auto_calibracao.py zera o contador só no arquivo local screener_config.json.
+    No Railway, porém, carregar_config_screener lê o PostgreSQL PRIMEIRO — então o
+    reset no arquivo era ignorado, o contador ficava >= 50 no DB e a calibração
+    re-disparava a CADA ciclo (enxurrada de notificações). Este reset usa o mesmo
+    caminho de escrita do incremento, garantindo que o zero chegue ao DB.
+    """
+    try:
+        from screener import carregar_config_screener, salvar_config_screener
+        raw = carregar_config_screener()
+        raw["sinais_desde_calibracao"] = 0
+        salvar_config_screener(raw)
+    except Exception:
+        pass
+
+
 def auto_calibrar_e_notificar():
     try:
         from auto_calibracao import auto_calibrar
@@ -255,6 +273,7 @@ def scan(
             if total >= _CALIBRACAO_TRIGGER:
                 calibracao_rodou = True
                 auto_calibrar_e_notificar()
+                _resetar_contador_calibracao()   # zera no DB p/ não recalibrar em loop
         except Exception:
             pass
 
@@ -978,6 +997,7 @@ async def iniciar_loops_automaticos():
                     total = _incrementar_sinais_config(len(novos))
                     if total >= _CALIBRACAO_TRIGGER:
                         auto_calibrar_e_notificar()
+                        _resetar_contador_calibracao()   # zera no DB (evita loop de calibração)
             except Exception:
                 pass
             await asyncio.sleep(60 * 60)
