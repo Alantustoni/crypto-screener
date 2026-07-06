@@ -781,8 +781,8 @@
   <div class="hist-stats" id="an-cards" style="display:none">
     <div class="hist-card"><div class="hl">Setups completos</div><div class="hv orange" id="an-r-total">—</div><div class="hsub" id="an-r-total-sub">—</div></div>
     <div class="hist-card"><div class="hl">✅ Deram lucro</div><div class="hv green" id="an-r-lucro">—</div><div class="hsub">fechados no verde</div></div>
-    <div class="hist-card"><div class="hl">❌ Deram prejuízo</div><div class="hv red" id="an-r-prej">—</div><div class="hsub">fechados no vermelho</div></div>
-    <div class="hist-card"><div class="hl">% de acerto</div><div class="hv" id="an-r-wr">—</div><div class="hsub" id="an-r-wr-sub">dos fechados</div></div>
+    <div class="hist-card"><div class="hl">❌ Deram prejuízo</div><div class="hv red" id="an-r-prej">—</div><div class="hsub" id="an-r-prej-sub">perda real (&gt; 0,5%)</div></div>
+    <div class="hist-card"><div class="hl">% de acerto</div><div class="hv" id="an-r-wr">—</div><div class="hsub" id="an-r-wr-sub">dos decididos</div></div>
     <div class="hist-card"><div class="hl">Resultado total</div><div class="hv" id="an-r-pl">—</div><div class="hsub" id="an-r-pl-sub">com taxa descontada</div></div>
     <div class="hist-card"><div class="hl">Profit Factor</div><div class="hv" id="an-r-pf">—</div><div class="hsub" id="an-r-pf-sub">quanto ganha p/ $1 perdido</div></div>
   </div>
@@ -1992,13 +1992,16 @@
       set('an-r-total-sub', (r.abertas||0)+' abertas · '+(r.fechados||0)+' fechadas');
       set('an-r-lucro', r.lucro??0);
       set('an-r-prej', r.prejuizo??0);
+      const emp = r.empate||0;
+      set('an-r-prej-sub', emp>0 ? ('perda real · '+emp+' empate'+(emp>1?'s':'')+' (~0%)') : 'perda real (> 0,5%)');
 
       const wrEl=document.getElementById('an-r-wr');
       if(wrEl){
         wrEl.textContent=(r.win_rate!=null?r.win_rate+'%':'—');
         wrEl.className='hv '+(r.win_rate==null?'neutral':r.win_rate>=55?'green':r.win_rate>=40?'orange':'red');
       }
-      set('an-r-wr-sub', (r.lucro||0)+' de '+(r.fechados||0));
+      const _dec=(r.lucro||0)+(r.prejuizo||0);
+      set('an-r-wr-sub', (r.lucro||0)+' de '+_dec+' decididos'+(emp>0?' · '+emp+' empate'+(emp>1?'s':''):''));
 
       const plEl=document.getElementById('an-r-pl');
       if(plEl){
@@ -2019,7 +2022,7 @@
 
       // Desempenho por tipo (normal x dip-buy)
       const t=r.por_tipo||{};
-      const fmtTipo=o=>(o&&o.fechados)?((o.win_rate!=null?o.win_rate+'% acerto':'—')+' ('+o.lucro+'/'+o.fechados+')'):'sem fechados';
+      const fmtTipo=o=>(o&&o.fechados)?((o.win_rate!=null?o.win_rate+'% acerto':'—')+' ('+(o.lucro||0)+'/'+((o.lucro||0)+(o.prej||0))+' decididos)'):'sem fechados';
       set('an-tipo-normal', fmtTipo(t.normal));
       set('an-tipo-dip', fmtTipo(t.dip));
       if(tipoBox) tipoBox.style.display='block';

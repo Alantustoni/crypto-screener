@@ -584,22 +584,38 @@ def api_analytics():
     cb_ativo = (capital > 0) and (acum < 0) and (abs(acum) / capital * 100 > 5.0)
 
     # ── RESUMO SIMPLIFICADO (aba Analytics enxuta) ───────────────────────
+    # Banda de EMPATE: trade que fecha dentro de ±0,5% é scratch (breakeven,
+    # timeout perto de zero) — NÃO é prejuízo de verdade. Antes esses inflavam
+    # a contagem de perdas (um breakeven em -0,04% aparecia como "prejuízo").
+    # Agora: lucro (> +0,5%), empate (±0,5%), prejuízo (< -0,5%). O win rate é
+    # calculado só sobre os trades DECISIVOS (lucro + prejuízo).
+    BANDA_EMPATE = 0.5
+    def _pct(f):
+        return f["pl"] / (f["pos"] or 1) * 100
+
     setups_total = sum(1 for h in historico_data if h.get("setup_completo"))
     n_fech    = len(fechados)
-    n_lucro   = sum(1 for f in fechados if f["pl"] > 0)
-    n_prej    = n_fech - n_lucro
-    win_rate_r = round(n_lucro / n_fech * 100) if n_fech else None
+    n_lucro   = sum(1 for f in fechados if _pct(f) >  BANDA_EMPATE)
+    n_prej    = sum(1 for f in fechados if _pct(f) < -BANDA_EMPATE)
+    n_empate  = n_fech - n_lucro - n_prej
+    _decisivos = n_lucro + n_prej
+    win_rate_r = round(n_lucro / _decisivos * 100) if _decisivos else None
 
     # Desempenho por tipo: normal x dip-buy (sniper/reversão)
-    tipo = {"normal": {"fechados": 0, "lucro": 0}, "dip": {"fechados": 0, "lucro": 0}}
+    tipo = {"normal": {"fechados": 0, "lucro": 0, "prej": 0},
+            "dip":    {"fechados": 0, "lucro": 0, "prej": 0}}
     for f in fechados:
         k = "dip" if (f["h"].get("sniper_setup") or f["h"].get("reversao_setup")) else "normal"
         tipo[k]["fechados"] += 1
-        if f["pl"] > 0:
+        pc = _pct(f)
+        if pc > BANDA_EMPATE:
             tipo[k]["lucro"] += 1
+        elif pc < -BANDA_EMPATE:
+            tipo[k]["prej"] += 1
     for k in tipo:
         t = tipo[k]
-        t["win_rate"] = round(t["lucro"] / t["fechados"] * 100) if t["fechados"] else None
+        dec = t["lucro"] + t["prej"]
+        t["win_rate"] = round(t["lucro"] / dec * 100) if dec else None
 
     # Termômetro de mercado (BOM / CAUTELA / RUIM)
     try:
@@ -642,6 +658,7 @@ def api_analytics():
         "abertas":       len(abertas),
         "lucro":         n_lucro,
         "prejuizo":      n_prej,
+        "empate":        n_empate,
         "win_rate":      win_rate_r,
         "profit_factor": profit_factor,
         "pl_total":      round(acum, 2),
@@ -1010,10 +1027,14 @@ def health_check():
     pls_fech = [(h, pl_simulado(h, _pos(h))) for h in fechados]
     pls_fech = [(h, p) for h, p in pls_fech if p is not None]
 
+    # Win rate só sobre trades DECISIVOS: empate (±0,5%, ex-breakeven) não conta
+    # como perda nem como ganho — mesma régua da aba Analytics.
+    _BANDA = 0.5
     def _win_rate(par_lst):
-        if not par_lst:
+        dec = [(h, p) for h, p in par_lst if abs(p / (_pos(h) or 1) * 100) > _BANDA]
+        if not dec:
             return None
-        return round(sum(1 for _, p in par_lst if p > 0) / len(par_lst) * 100)
+        return round(sum(1 for h, p in dec if p > 0) / len(dec) * 100)
 
     win_geral = _win_rate(pls_fech)
     win_10    = _win_rate(pls_fech[-10:])
