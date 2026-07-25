@@ -409,6 +409,34 @@ def _regime_bearish() -> bool:
 #  REGISTRO DE SINAIS
 # ════════════════════════════════════════════════════════════════════════════
 
+# ── FILTRO DE EDGE (baseado em 764 trades reais medidos via /api/edge) ────────
+# A análise mostrou um padrão coerente: comprar FRAQUEZA/capitulação ganha
+# (dip-buy PF 1.23, RSI<35 PF 3.52, pico de volume PF 2.04), e comprar FORÇA
+# perde (setup 'normal' PF 0.63, score>=8 PF 0.57, momentum PF 0.74). O sistema
+# perdia no total (-$301) porque tomava ~480 setups normais perdedores que
+# afogavam os ~284 dip-buy lucrativos.
+#
+# Reconfiguração: o dip-buy (sniper/reversão) continua sendo o núcleo. O setup
+# 'normal' só é aceito quando pega uma condição COMPROVADAMENTE lucrativa —
+# pico de volume (z>2) OU sobrevendido (RSI<35). Sem isso, é barrado. Assim
+# removemos a maior fonte de perda sem descartar os poucos normais bons.
+# É reversível: EDGE_FILTRO_NORMAL=False volta ao comportamento antigo.
+EDGE_FILTRO_NORMAL   = True
+EDGE_VOL_ZSCORE_MIN  = 2.0
+EDGE_RSI_SOBREVENDIDO = 35.0
+
+
+def _setup_normal_qualificado(r: dict) -> bool:
+    """True se um setup 'normal' (não dip-buy) pega uma condição lucrativa."""
+    if not EDGE_FILTRO_NORMAL:
+        return True
+    vz  = r.get("vol_zscore")
+    rsi = r.get("rsi")
+    pico_volume  = isinstance(vz,  (int, float)) and vz  > EDGE_VOL_ZSCORE_MIN
+    sobrevendido = isinstance(rsi, (int, float)) and rsi < EDGE_RSI_SOBREVENDIDO
+    return bool(pico_volume or sobrevendido)
+
+
 @_com_lock
 def registrar_sinais(resultados: list, score_minimo: int = SCORE_MINIMO) -> list:
     """Registra os setups e RETORNA a lista das entradas novas (para o alerta
@@ -437,10 +465,14 @@ def registrar_sinais(resultados: list, score_minimo: int = SCORE_MINIMO) -> list
         # Setups de queda (sniper / reversão) são qualificados por CONFLUÊNCIA
         # de sinais de fundo no screener, não por score — em downtrend o score
         # é naturalmente penalizado. Piso -2 apenas barra o pior ('faca caindo'
-        # dá <= -3). Setups normais seguem o piso (base/regime).
+        # dá <= -3). Setups normais seguem o piso (base/regime) E o filtro de edge.
         if r.get("sniper_setup") or r.get("reversao_setup"):
             piso = -2
         else:
+            # Filtro de edge: setup normal só passa se pegar pico de volume ou
+            # sobrevendido (as condições que deram lucro nos dados reais).
+            if not _setup_normal_qualificado(r):
+                continue
             piso = score_minimo_efetivo
         if r.get("score", 0) < piso:
             continue

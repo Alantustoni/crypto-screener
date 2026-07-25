@@ -279,9 +279,10 @@ class TestTuningAgressivo(unittest.TestCase):
         self.assertEqual(sh.REGIME_SCORE_MINIMO, 5)   # antes 10, depois 7, agora 5
 
     @staticmethod
-    def _fake_result(symbol, score, sniper=False, reversao=False):
+    def _fake_result(symbol, score, sniper=False, reversao=False, rsi=45, vol_zscore=None):
         return {
-            "symbol": symbol, "preco": 100.0, "score": score, "rsi": 45,
+            "symbol": symbol, "preco": 100.0, "score": score, "rsi": rsi,
+            "vol_zscore": vol_zscore,
             "setup_completo": True, "sniper_setup": sniper, "reversao_setup": reversao,
             "divergencia": None, "funding_sinal": None, "mtf_tendencia": "alta",
             "intervalo": "1h", "sinais": [], "market_structure": None,
@@ -330,6 +331,31 @@ class TestTuningAgressivo(unittest.TestCase):
         n = sh.registrar_sinais([self._fake_result("ADAUSDT", 3, sniper=False)],
                                 score_minimo=5)
         self.assertEqual(len(n), 0)
+
+    def test_filtro_edge_barra_normal_sem_confirmacao(self):
+        # Setup normal com score ALTO mas sem pico de volume nem sobrevendido →
+        # barrado pelo filtro de edge (esses perdiam nos dados reais, PF 0.63).
+        self._forcar_regime_bearish()
+        sh.salvar_historico([])
+        n = sh.registrar_sinais([self._fake_result("ADAUSDT", 9, rsi=55, vol_zscore=0.5)],
+                                score_minimo=5)
+        self.assertEqual(len(n), 0)
+
+    def test_filtro_edge_passa_normal_com_pico_volume(self):
+        # Setup normal + pico de volume (z>2) → passa (condição lucrativa).
+        self._forcar_regime_bearish()
+        sh.salvar_historico([])
+        n = sh.registrar_sinais([self._fake_result("ADAUSDT", 9, rsi=55, vol_zscore=2.5)],
+                                score_minimo=5)
+        self.assertEqual(len(n), 1)
+
+    def test_filtro_edge_passa_normal_sobrevendido(self):
+        # Setup normal + RSI sobrevendido (<35) → passa (condição lucrativa).
+        self._forcar_regime_bearish()
+        sh.salvar_historico([])
+        n = sh.registrar_sinais([self._fake_result("ADAUSDT", 9, rsi=30, vol_zscore=0.0)],
+                                score_minimo=5)
+        self.assertEqual(len(n), 1)
 
 
 class TestBreakevenFill(unittest.TestCase):

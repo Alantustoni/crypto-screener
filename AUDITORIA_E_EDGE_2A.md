@@ -56,6 +56,28 @@ Ampliei pra ~167 dias em timeframe 4h (menos ruído, menos custo) e adicionei o 
 
 O contexto que explica muita coisa: **o buy & hold médio das moedas foi −36% nesse período** — foi mercado de baixa. Uma estratégia *long-only* (só compra) não tem como lucrar quando o mercado inteiro cai; ela só perde menos, na melhor das hipóteses. O filtro de regime ajudou de leve, mas não o bastante. Conclusão consistente entre **todos** os testes (dip, momentum 1h e 4h, várias saídas, com e sem filtro de regime, 500+ trades): **nenhuma variante de preço long-only mostra edge líquido aqui.**
 
+### ATUALIZAÇÃO: a coleta ao vivo achou um LEAD real (764 trades)
+
+Com a captura de features rodando, o `/api/edge` sobre **764 trades reais** revelou um padrão coerente demais pra ser acaso. O sistema perde no total (PF 0,81, −$301), mas isso é a MÉDIA de dois grupos opostos:
+
+| Condição na entrada | Trades | Profit Factor |
+|---|---|---|
+| RSI sobrevendido (<35) | 66 | **3,52** |
+| EMA-spread fraco / pullback | 95 | **2,84** |
+| Pico de volume (z>2) | 117 | **2,04** |
+| Score BAIXO (<5) | 233 | **1,31** |
+| Fear & Greed em medo (≤25) | 366 | **1,27** |
+| Dip-buy / reversão | 284 | **1,23** |
+| — setup 'normal' | 480 | 0,63 |
+| — score ALTO (≥8) | 220 | 0,57 |
+| — momentum / acima do VWAP | 380+ | ~0,65 |
+
+Todas as features apontam pro mesmo lado: **comprar fraqueza/capitulação ganha; comprar força perde.** É um único edge (reversão à média) visto de 6-7 ângulos. Detalhe notável: **o score do sistema está invertido** — score alto prevê PERDA. O sistema perdia porque tomava ~480 setups 'normais' perdedores que afogavam os ~284 dip-buy lucrativos.
+
+**Reconfiguração aplicada** (`signal_history.py`, `EDGE_FILTRO_NORMAL`): o dip-buy vira o núcleo; o setup 'normal' só é aceito quando pega uma condição comprovadamente lucrativa (pico de volume z>2 ou RSI<35). Remove a maior fonte de perda. **Reversível** por flag.
+
+Limites honestos: é *dentro da amostra*, período de mercado de baixa (reversão à média brilha aí), features correlacionadas (um edge, não seis), e ainda paper trading. **Ainda não é dinheiro real** — é o primeiro lead que merece validação PRA FRENTE, inclusive num mercado de alta.
+
 ---
 
 ## 3. Por que o painel diz o contrário?
