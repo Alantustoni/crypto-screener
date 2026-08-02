@@ -78,6 +78,25 @@ Todas as features apontam pro mesmo lado: **comprar fraqueza/capitulação ganha
 
 Limites honestos: é *dentro da amostra*, período de mercado de baixa (reversão à média brilha aí), features correlacionadas (um edge, não seis), e ainda paper trading. **Ainda não é dinheiro real** — é o primeiro lead que merece validação PRA FRENTE, inclusive num mercado de alta.
 
+### O lead DECAIU — análise temporal (839 trades, em dólar)
+
+Cortando o P&L reconstruído (rateio moonbag + taxa) por período, a verdade aparece:
+
+| Período | Trades | Total | Dip-buy | Normal |
+|---|---|---|---|---|
+| 02–19/jul | 587 | −$273 | **+$35** | −$307 |
+| 19/jul–02/ago | 252 | −$204 | **−$90** | −$114 |
+
+O edge do dip-buy veio quase todo do começo de julho; **nas últimas 2 semanas ele virou perdedor (−$90).** A vantagem decaiu — exatamente o risco de reversão à média: funciona até o regime virar, aí compra vira "faca caindo". O prejuízo de −$204 recente é **atual, não legado**.
+
+Decomposição total (−$476): setups normais = −$421 (88%); o filtro novo bloquearia −$415 disso. Concentrado em 8 alts de baixa liquidez (CELO, STX, FIL, CAKE, ENJ, CRV, OP, AVAX ≈ 46% do rombo) que despencaram na queda.
+
+### Correção aplicada: PAUSA DE REGIME (a alavanca nº 1)
+
+Diagnóstico central: **long-only não tem como ganhar contra a maré.** O prejuízo concentra quando o BTC cai. Regra clássica aplicada (`EDGE_PAUSAR_EM_QUEDA`): quando o **BTC está abaixo da EMA50 no 4h**, o sistema **não registra nada** — fica de fora e preserva capital. Combinado com o filtro de edge (dip-buy + volume/sobrevendido), o sistema agora só opera long em mercado de alta e nas condições que deram lucro.
+
+Honestidade acima de tudo: isso **reduz perda / preserva capital** — não é garantia de lucro. Não há edge durável comprovado. A pausa faz o sistema perder muito menos (ou nada, ficando de fora), que é a forma real de "reverter" o prejuízo. **Dinheiro real continua fora** até a versão pausada+filtrada segurar pra frente por semanas.
+
 ---
 
 ## 3. Por que o painel diz o contrário?

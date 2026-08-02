@@ -15,7 +15,7 @@ import sqlite3
 import threading
 from pathlib import Path
 from datetime import datetime
-from screener import get_ticker_24h, get_fear_greed, get_klines
+from screener import get_ticker_24h, get_fear_greed, get_klines, get_btc_4h_tendencia
 from trading_math import pl_simulado as _pl_simulado_canonico, niveis_saida
 
 log = logging.getLogger("crypto_screener")
@@ -425,6 +425,27 @@ EDGE_FILTRO_NORMAL   = True
 EDGE_VOL_ZSCORE_MIN  = 2.0
 EDGE_RSI_SOBREVENDIDO = 35.0
 
+# ── PAUSA DE REGIME (a maior alavanca p/ parar de perder) ─────────────────────
+# A análise por período mostrou que o prejuízo se concentra quando o mercado cai
+# (BTC abaixo da EMA50 no 4h). Long-only não tem como ganhar contra a maré: os
+# alts seguem o BTC pra baixo e todo trade vira "faca caindo" — foi assim que até
+# o dip-buy virou perdedor (−$90) nas últimas 2 semanas. Regra clássica: não
+# ficar comprado abaixo da tendência primária. Quando o BTC está abaixo da EMA50
+# no 4h, o sistema NÃO registra nada (fica de fora e preserva capital).
+# Reversível: EDGE_PAUSAR_EM_QUEDA=False volta a operar em qualquer regime.
+EDGE_PAUSAR_EM_QUEDA = True
+
+
+def _mercado_saudavel() -> bool:
+    """True se o BTC está acima da EMA50 no 4h (regime onde comprar alt faz
+    sentido). Em caso de falha de leitura, assume saudável (não trava o sistema)."""
+    if not EDGE_PAUSAR_EM_QUEDA:
+        return True
+    try:
+        return get_btc_4h_tendencia() != "abaixo_ema50"
+    except Exception:
+        return True
+
 
 def _setup_normal_qualificado(r: dict) -> bool:
     """True se um setup 'normal' (não dip-buy) pega uma condição lucrativa."""
@@ -446,6 +467,11 @@ def registrar_sinais(resultados: list, score_minimo: int = SCORE_MINIMO) -> list
     novos     = []
 
     if _circuit_breaker_sequencial_ativo(historico, agora):
+        return []
+
+    # PAUSA DE REGIME: BTC abaixo da EMA50 (4h) → mercado de queda, não compra.
+    # É a alavanca nº 1 contra o prejuízo — evita operar long contra a maré.
+    if not _mercado_saudavel():
         return []
 
     score_minimo_efetivo = score_minimo

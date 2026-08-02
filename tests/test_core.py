@@ -295,10 +295,26 @@ class TestTuningAgressivo(unittest.TestCase):
     def _forcar_regime_bearish(self):
         orig_reg = sh._regime_bearish
         orig_cb = sh._circuit_breaker_sequencial_ativo
+        orig_mkt = sh._mercado_saudavel
         sh._regime_bearish = lambda: True
         sh._circuit_breaker_sequencial_ativo = lambda *a, **k: False
+        sh._mercado_saudavel = lambda: True   # neutraliza a pausa de regime nos testes
         self.addCleanup(setattr, sh, "_regime_bearish", orig_reg)
         self.addCleanup(setattr, sh, "_circuit_breaker_sequencial_ativo", orig_cb)
+        self.addCleanup(setattr, sh, "_mercado_saudavel", orig_mkt)
+
+    def test_pausa_de_regime_barra_tudo_em_queda(self):
+        # BTC abaixo da EMA50 (mercado ruim) → não registra NADA, nem dip-buy.
+        orig_cb = sh._circuit_breaker_sequencial_ativo
+        orig_mkt = sh._mercado_saudavel
+        sh._circuit_breaker_sequencial_ativo = lambda *a, **k: False
+        sh._mercado_saudavel = lambda: False
+        self.addCleanup(setattr, sh, "_circuit_breaker_sequencial_ativo", orig_cb)
+        self.addCleanup(setattr, sh, "_mercado_saudavel", orig_mkt)
+        sh.salvar_historico([])
+        n = sh.registrar_sinais([self._fake_result("SOLUSDT", 5, sniper=True)],
+                                score_minimo=5)
+        self.assertEqual(len(n), 0)
 
     def test_sniper_opera_durante_regime_bearish(self):
         # Sniper é qualificado por confluência → passa mesmo em regime bearish.
