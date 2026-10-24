@@ -1,0 +1,6 @@
+{
+  "ativo": true,
+  "bot_token": "SEU_TOKEN_DO_BOTFATHER",
+  "chat_id": "SEU_CHAT_ID",
+  "score_minimo": 3
+}

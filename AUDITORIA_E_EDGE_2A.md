@@ -1,6 +1,6 @@
 # 2A Crypto — Auditoria + Veredito de Edge
 
-*Análise técnica completa e teste de estratégia com dados reais. Julho/2026.*
+*Auditoria da estratégia do screener com dados reais da Binance, custos descontados e validação fora da amostra. Julho/2026.*
 
 ---
 
@@ -8,27 +8,27 @@
 
 **A estratégia ainda não tem edge comprovado. Num teste honesto com dados reais e custos, o núcleo baseado em preço perde dinheiro. Não coloque dinheiro real agora.** O que o painel mostra (+$47, PF 2,12, 54% de acerto) vem de ~48 trades simulados de poucos dias — amostra pequena e favorável. Quando testei centenas de trades ao longo de semanas, o resultado inverte.
 
-Isso não é um "não" definitivo à ideia. É um "não com dinheiro real até provar edge fora da amostra". A diferença entre os dois é o seu R$1.000.
+Isso não é um "não" definitivo à ideia. É um "não com dinheiro real até provar edge fora da amostra". A diferença entre os dois é o capital que se preserva.
 
 ---
 
 ## 2. O teste que fiz (e por que dá pra confiar mais nele)
 
-Puxei candles reais da Binance de 25 moedas líquidas (~35 dias, 1h) e reproduzi o **núcleo** dos seus setups, descontando **0,30% de taxa+slippage** por trade (ida e volta) e usando a mesma lógica de saída do sistema (SL/TP por ATR + moonbag 50/30/20 + trailing + timeout 24h). Execução no candle seguinte ao sinal (sem trapaça de look-ahead).
+Puxei candles reais da Binance de 25 moedas líquidas (~35 dias, 1h) e reproduzi o **núcleo** dos setups do screener, descontando **0,30% de taxa+slippage** por trade (ida e volta) e usando a mesma lógica de saída do sistema (SL/TP por ATR + moonbag 50/30/20 + trailing + timeout 24h). Execução no candle seguinte ao sinal (sem trapaça de look-ahead).
 
 | Estratégia | Trades | Acerto | Profit Factor | Expectativa/trade | Retorno | Max Drawdown |
 |---|---|---|---|---|---|---|
-| **Dip-buy** (seu foco atual) | 347 | 43,8% | **0,56** | **−0,62%** | **−43%** | 44% |
+| **Dip-buy** (foco do screener na época) | 347 | 43,8% | **0,56** | **−0,62%** | **−43%** | 44% |
 | Dip-buy — janela recente (30%) | 92 | 44,6% | 0,53 | −0,60% | −11% | 11% |
 | **Momentum/tendência** | 289 | 48,8% | **0,65** | **−0,44%** | −26% | 27% |
 | Momentum — janela recente (30%) | 110 | 51,8% | 0,95 | −0,05% | −1,2% | 6,7% |
 
-Leitura: **Profit Factor abaixo de 1 = estratégia perdedora.** O dip-buy perde claramente. O momentum perde menos e quase empata na janela recente, mas ainda não é lucro. Para valer a pena com dinheiro real, você quer PF **acima de 1,3–1,5** de forma consistente, fora da amostra.
+Leitura: **Profit Factor abaixo de 1 = estratégia perdedora.** O dip-buy perde claramente. O momentum perde menos e quase empata na janela recente, mas ainda não é lucro. Para valer a pena com dinheiro real, o PF precisa ficar **acima de 1,3–1,5** de forma consistente, fora da amostra.
 
 ### Por que perde (o problema estrutural)
 Em **ambas** as estratégias: **perda média (~2,5%) é MAIOR que ganho médio (~1,7–2,0%)** e o acerto fica **abaixo de 50%**. Isso é expectativa negativa matemática. As causas:
 
-1. **As saídas cortam o ganhador cedo demais.** O TP1 vende 50% em ~ATR e o trailing fecha o resto rápido, então o ganho médio fica pequeno — enquanto o perdedor vai até o stop cheio. Em cripto você precisa do contrário: deixar o ganhador correr MUITO (cauda gorda) pra pagar vários stops pequenos.
+1. **As saídas cortam o ganhador cedo demais.** O TP1 vende 50% em ~ATR e o trailing fecha o resto rápido, então o ganho médio fica pequeno — enquanto o perdedor vai até o stop cheio. Em cripto é preciso o contrário: deixar o ganhador correr MUITO (cauda gorda) pra pagar vários stops pequenos.
 2. **Overtrading.** 347 trades em 35 dias × 0,30% de custo = mais de 100% do capital gasto em taxa/slippage no período. Cada trade a mais só te sangra se não houver edge. Menos trades, mais seletivos.
 3. **Comprar fraqueza (dip-buy) pega faca caindo.** Comprar RSI baixo em queda é o clássico que perde líquido — confirmado nos números.
 
@@ -142,7 +142,7 @@ python backtest_v2.py --estrategia dip --dias 180
 Meta objetiva: só avança quem tiver **PF > 1,3 e expectativa > 0 no TESTE (30% fora da amostra)**. Se nenhuma passar como está, o trabalho vira *encontrar* uma que passe — não colocar dinheiro.
 
 **Passo 2 — O foco é a ENTRADA, não a saída.** Já testei reformar a saída e não resolve (seção 2). O trabalho de verdade é achar um sinal de entrada que preveja o movimento melhor que o acaso, líquido de custos. Isso é o que 95% dos que tentam não conseguem — e é honesto encarar isso de frente. Duas frentes concretas pra testar (cada uma com o `backtest_v2.py`, barra PF > 1,3 fora da amostra):
-- **A única hipótese ainda não testada: os filtros ao vivo** (order-book imbalance, funding). Eles não entram no meu backtest porque não existem no histórico. Se existe edge no seu sistema, é aqui que ele estaria. Só dá pra provar coletando esses dados ao vivo por semanas e medindo se os trades filtrados por eles batem os não-filtrados. Vale montar essa coleta.
+- **A única hipótese ainda não testada: os filtros ao vivo** (order-book imbalance, funding). Eles não entram no backtest porque não existem no histórico. Se existe edge no sistema, é aqui que ele estaria. Só dá pra provar coletando esses dados ao vivo por semanas e medindo se os trades filtrados por eles batem os não-filtrados. Vale montar essa coleta.
 - **Timeframe/universo diferentes** (ex.: 4h em vez de 1h reduz custo relativo e ruído; ou focar só nas 3–5 moedas mais líquidas). Testar se a expectativa muda de sinal.
 
 **Passo 3 — Menos trades, mais convicção.** Subir o piso de qualidade do sinal e medir se a expectativa por trade sobe. Frequência alta só ajuda se cada trade tiver vantagem — e a 0,30% de custo, ela sangra.
@@ -159,20 +159,18 @@ Nada mágico — o que profissionais de fato usam:
 
 - **ccxt** — biblioteca única para dados e execução em dezenas de corretoras (troca Binance por outra sem reescrever).
 - **pandas-ta** ou **TA-Lib** — indicadores testados e rápidos (menos bug que reimplementar à mão).
-- **vectorbt** ou **backtesting.py** — backtest vetorizado + varredura de parâmetros + walk-forward de verdade (muito além do meu script didático).
+- **vectorbt** ou **backtesting.py** — backtest vetorizado + varredura de parâmetros + walk-forward de verdade (muito além do `backtest_v2.py`, que é didático).
 - **Métricas certas** — Sharpe, Sortino, Calmar, max drawdown, expectancy. Retorno sem drawdown engana.
 - **Walk-forward / validação fora da amostra** — o único jeito honesto de não se enganar com overfitting.
 
 ---
 
-## 7. Sobre a meta de R$80–100/dia
+## 7. Sobre metas diárias
 
-Com R$1.000, isso é **8–10% ao dia**. Nenhum fundo, banco ou trader do mundo sustenta isso — os melhores fazem 20–40% ao **ano**. Perseguir meta diária alta força posição grande e overtrading, que é exatamente como se zera uma conta. 
+Uma meta de retorno diário alta sobre capital pequeno força posição grande e overtrading — exatamente como se zera uma conta. A pergunta certa não é "quanto ganho por dia", é: **há edge comprovado fora da amostra? o risco por trade preserva o capital nos meses ruins?** Se sim, o lucro vem da composição ao longo do tempo, com meses no vermelho no meio. Se não, nenhuma meta diária muda a matemática.
 
-A meta saudável não é "quanto ganho por dia", é: **tenho edge comprovado fora da amostra? meu risco por trade preserva o capital nos meses ruins?** Se sim, o lucro vem da composição ao longo do tempo — devagar, com meses no vermelho no meio. Se não, nenhuma meta diária muda a matemática; só acelera a perda.
-
-Eu topo construir isso com você do jeito certo: provar o edge primeiro, blindar o risco, e só então falar em dinheiro real. É mais lento, mas é o único caminho que não termina com você perdendo os R$1.000.
+Conclusão prática: provar o edge primeiro, blindar o risco, e só então falar em dinheiro real.
 
 ---
 
-*Método e limites do teste estão documentados no topo de `backtest_v2.py`. Números da tabela vieram de dados reais da Binance puxados no seu navegador em julho/2026; reexecute o script para atualizar e ampliar a amostra.*
+*Método e limites do teste estão documentados no topo de `backtest_v2.py`. Números da tabela vieram de dados reais da Binance puxados em julho/2026; reexecute o script para atualizar e ampliar a amostra.*

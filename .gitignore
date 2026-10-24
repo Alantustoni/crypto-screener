@@ -40,3 +40,6 @@ _restart.bat
 Cripto_scaner/
 Scaner_Cripto/
 AUDITORIA_TECNICA.md
+
+# Config local (use os .example.json como base)
+screener_config.json

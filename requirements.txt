@@ -2,4 +2,5 @@ fastapi==0.115.0
 uvicorn[standard]==0.30.6
 requests==2.32.3
 python-multipart==0.0.9
-psycopg2-binary==2.9.9
+# PostgreSQL (Railway); sem DATABASE_URL o sistema usa SQLite
+psycopg2-binary==2.9.9; python_version < "3.13"
