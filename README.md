@@ -7,7 +7,10 @@
 
 Screener de criptomoedas que varre os 100 pares mais líquidos da Binance, pontua cada um por um conjunto de indicadores, dispara alertas no Telegram, registra os sinais num banco e **mede o próprio desempenho** — com backtest, auto-calibração dos pesos e um relatório de auditoria.
 
-> **O resultado mais importante deste projeto é negativo.** A auditoria com dados reais, custos descontados e validação fora da amostra concluiu que a estratégia **não tem edge comprovado** e não deve operar dinheiro real. O relatório completo está em [`AUDITORIA_E_EDGE_2A.md`](AUDITORIA_E_EDGE_2A.md). O sistema continua no ar coletando sinais para testar a única hipótese ainda aberta (filtros de order book e funding).
+> ## ⚠️ Veredito da auditoria: sem edge. Não operar dinheiro real.
+> Backtest com candles reais da Binance, 0,30 % de custo por trade e validação fora da amostra: **dip-buy PF 0,56 (−43 %)**, **momentum PF 0,65 (−26 %)**. Profit factor abaixo de 1 é estratégia perdedora. Quatro estruturas de saída testadas; nenhuma inverteu o sinal. Relatório completo: [`AUDITORIA_E_EDGE_2A.md`](AUDITORIA_E_EDGE_2A.md).
+>
+> O resultado negativo é o resultado mais importante deste projeto. O sistema continua no ar coletando sinais para testar a única hipótese ainda aberta (filtros de order book e funding).
 
 Rodou 24/7 no Railway entre junho e agosto de 2026, com 55 commits ao longo de seis semanas.
 
@@ -66,6 +69,8 @@ uvicorn main:app --reload
 ```
 
 Abra `http://localhost:8000`. Sem `DATABASE_URL`, o histórico vai para um SQLite local.
+
+Não precisa de conta nem chave de API: Binance, CoinGecko e Fear & Greed são consultados pelos endpoints públicos. O único segredo é o token do bot do Telegram, e só se você quiser alertas.
 
 ### Deploy
 
