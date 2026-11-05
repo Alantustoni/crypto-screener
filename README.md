@@ -12,7 +12,7 @@ Screener de criptomoedas que varre os 100 pares mais líquidos da Binance, pontu
 >
 > O resultado negativo é o resultado mais importante deste projeto. O sistema continua no ar coletando sinais para testar a única hipótese ainda aberta (filtros de order book e funding).
 
-Rodou 24/7 no Railway entre junho e agosto de 2026, com 55 commits ao longo de seis semanas.
+Roda 24/7 no Railway desde junho de 2026. O desenvolvimento ativo foi de junho a agosto, com 55 commits em seis semanas.
 
 ## O que o sistema faz
 
